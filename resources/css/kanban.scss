@@ -20,16 +20,12 @@
             }
 
             .kanban-record {
-                @apply w-full flex flex-col gap-4 rounded bg-gray-50 border border-gray-200 p-3 hover:shadow hover:bg-gray-100 relative;
+                @apply w-full flex flex-col gap-4 rounded bg-gray-50 border border-gray-200 p-3 hover:shadow hover:bg-gray-100 relative cursor-move;
 
-                .handle {
-                    @apply absolute top-0 right-0 text-gray-500 opacity-0 hover:cursor-pointer bg-gray-100 hover:bg-gray-200 rounded-bl p-2 transition;
-                }
-
+                // Add visual feedback for dragging
                 &:hover {
-                    .handle {
-                        @apply opacity-100;
-                    }
+                    @apply transform -translate-y-0.5 shadow-md;
+                    transition: all 0.2s ease;
                 }
 
                 .record-info {
@@ -41,6 +37,7 @@
 
                     .record-title {
                         @apply text-base text-gray-600 hover:cursor-pointer;
+                        user-select: none; // Prevent text selection when dragging
 
                         .code {
                             @apply text-xs font-medium text-gray-400;
@@ -52,6 +49,11 @@
                             }
                         }
                     }
+                }
+
+                // Due date styling
+                .record-due-date {
+                    @apply w-full;
                 }
 
                 .record-footer {
