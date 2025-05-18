@@ -403,6 +403,13 @@
                 .send()
         });
     </script>
+    <script>
+        // Inject users data globally for mentions autocomplete
+    window.mentionUsers = {!! $this->getMentionUsersJs() !!};
+
+    // Debug log to verify data
+    console.log('Mention users injected:', window.mentionUsers);
+    </script>
 
     {{-- Include Mentions Script --}}
     <script src="{{ asset('js/mentions.js') }}"></script>

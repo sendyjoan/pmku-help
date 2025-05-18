@@ -8,6 +8,7 @@ use App\Models\Activity;
 use App\Models\TicketComment;
 use App\Models\TicketHour;
 use App\Models\TicketSubscriber;
+use App\Models\User;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -166,7 +167,7 @@ class ViewTicket extends ViewRecord implements HasForms
                 ->required()
                 ->extraInputAttributes([
                     'data-enable-mentions' => 'true',
-                    'data-users' => json_encode($this->getAvailableUsers())
+                    'id' => 'comment-editor'
                 ])
         ];
     }
@@ -242,6 +243,7 @@ class ViewTicket extends ViewRecord implements HasForms
         $this->form->fill();
         $this->selectedCommentId = null;
     }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         // Handle CC users
@@ -263,40 +265,65 @@ class ViewTicket extends ViewRecord implements HasForms
             $this->record->ccUsers()->sync($this->ccUsers);
         }
     }
-    private function getAvailableUsers()
+
+    // Method to get users for JavaScript injection
+    public function getMentionUsersJs(): string
+    {
+        $users = $this->getAvailableUsers();
+        return json_encode($users, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    // Fixed method to get available users
+    private function getAvailableUsers(): array
     {
         try {
-            // Get users from project + watchers + all users for flexibility
+            // Get users from project
             $projectUsers = collect();
-            $watchers = collect();
-
             if ($this->record && $this->record->project) {
                 $projectUsers = $this->record->project->users ?? collect();
             }
 
+            // Get watchers (project owner, ticket owner, responsible)
+            $watcherIds = [];
             if ($this->record) {
-                $watchers = $this->record->watchers ?? collect();
+                if ($this->record->owner_id) {
+                    $watcherIds[] = $this->record->owner_id;
+                }
+                if ($this->record->responsible_id) {
+                    $watcherIds[] = $this->record->responsible_id;
+                }
+                if ($this->record->project && $this->record->project->owner_id) {
+                    $watcherIds[] = $this->record->project->owner_id;
+                }
+            }
+
+            // Get additional users by IDs
+            $watcherUsers = collect();
+            if (!empty($watcherIds)) {
+                $watcherUsers = User::whereIn('id', array_unique($watcherIds))->get();
             }
 
             // Merge and get unique users
-            $users = $projectUsers->merge($watchers)->unique('id');
+            $users = $projectUsers->merge($watcherUsers)->unique('id');
 
             // If no users found, get all users as fallback
             if ($users->isEmpty()) {
-                $users = User::all();
+                $users = User::limit(50)->get(); // Limit to prevent performance issues
             }
 
             return $users->map(function ($user) {
-                // Ensure all required fields exist
+                // Generate username from email if not exists
+                $username = $this->getUserUsername($user);
+
                 return [
-                    'id' => $user->id ?? 0,
-                    'username' => $user->username ?? 'user' . $user->id,
+                    'id' => $user->id,
+                    'username' => $username,
                     'name' => $user->name ?? 'Unknown User',
-                    'avatar' => $this->getUserAvatar($user)
+                    'avatar' => $this->getDefaultAvatar($user)
                 ];
             })->filter(function($user) {
                 // Filter out users without username
-                return !empty($user['username']);
+                return !empty($user['username']) && !empty($user['name']);
             })->values()->toArray();
 
         } catch (\Exception $e) {
@@ -305,22 +332,40 @@ class ViewTicket extends ViewRecord implements HasForms
         }
     }
 
-    private function getUserAvatar($user)
+    // Helper method to get username
+    private function getUserUsername($user): string
     {
-        try {
-            if (method_exists($user, 'getFilamentAvatarUrl')) {
-                return $user->getFilamentAvatarUrl();
-            }
-
-            // Fallback to gravatar or default
-            if ($user->email) {
-                $hash = md5(strtolower(trim($user->email)));
-                return "https://www.gravatar.com/avatar/{$hash}?d=mp&s=100";
-            }
-
-            return '/images/default-avatar.png'; // Default avatar path
-        } catch (\Exception $e) {
-            return '/images/default-avatar.png';
+        // If user has username field, use it
+        if (isset($user->username) && !empty($user->username)) {
+            return $user->username;
         }
+
+        // If user has oidc_username, use it
+        if (isset($user->oidc_username) && !empty($user->oidc_username)) {
+            return $user->oidc_username;
+        }
+
+        // Generate from email
+        if (!empty($user->email)) {
+            $baseUsername = strtolower(explode('@', $user->email)[0]);
+            return preg_replace('/[^a-z0-9_]/', '', $baseUsername);
+        }
+
+        // Fallback to user ID
+        return 'user' . $user->id;
+    }
+
+    // Simple avatar method that doesn't rely on external methods
+    private function getDefaultAvatar($user): string
+    {
+        // Create a simple gravatar URL or use default
+        if (!empty($user->email)) {
+            $hash = md5(strtolower(trim($user->email)));
+            return "https://www.gravatar.com/avatar/{$hash}?d=identicon&s=40";
+        }
+
+        // Use UI Avatars as fallback
+        $name = urlencode($user->name ?? 'User');
+        return "https://ui-avatars.com/api/?name={$name}&size=40&background=random";
     }
 }

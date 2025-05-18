@@ -27,31 +27,79 @@ class MentionsAutocomplete {
         richEditors.forEach((editor) => {
             if (editor.dataset.mentionsInitialized) return;
 
-            // Fix: Add error handling for JSON parsing
+            // Enhanced error handling for JSON parsing
             let usersData = [];
             try {
                 const rawData = editor.dataset.users || "[]";
                 console.log("Raw users data:", rawData); // Debug log
-                usersData = JSON.parse(rawData);
-                console.log("Parsed users data:", usersData); // Debug log
+
+                // Check if rawData is empty or not valid JSON
+                if (!rawData || rawData.trim() === "") {
+                    console.warn("Empty users data, using empty array");
+                    usersData = [];
+                } else {
+                    // Try to parse the JSON
+                    usersData = JSON.parse(rawData);
+
+                    // Ensure it's an array
+                    if (!Array.isArray(usersData)) {
+                        console.warn(
+                            "Users data is not an array, converting:",
+                            usersData
+                        );
+                        usersData = Array.isArray(usersData) ? usersData : [];
+                    }
+
+                    console.log("Parsed users data:", usersData); // Debug log
+                }
             } catch (error) {
                 console.error("Error parsing users data:", error);
-                console.log("Failed to parse:", editor.dataset.users);
+                console.log("Failed to parse raw data:", editor.dataset.users);
                 usersData = [];
             }
+
+            // Validate users array structure
+            usersData = this.validateUsersData(usersData);
 
             this.initMentionsForEditor(editor, usersData);
             editor.dataset.mentionsInitialized = "true";
         });
     }
 
+    // New method to validate and clean users data
+    validateUsersData(users) {
+        if (!Array.isArray(users)) {
+            console.warn("Users data is not an array");
+            return [];
+        }
+
+        return users
+            .filter((user) => {
+                // Ensure user is an object with required properties
+                if (!user || typeof user !== "object") {
+                    console.warn("Invalid user object:", user);
+                    return false;
+                }
+
+                // Ensure required fields exist
+                if (!user.id || !user.username || !user.name) {
+                    console.warn("User missing required fields:", user);
+                    return false;
+                }
+
+                return true;
+            })
+            .map((user) => ({
+                id: user.id,
+                username: user.username,
+                name: user.name,
+                avatar: user.avatar || "/default-avatar.png",
+            }));
+    }
+
     initMentionsForEditor(editorElement, users) {
-        // Find the actual contenteditable element (varies by RichEditor implementation)
-        const contentEditable =
-            editorElement.querySelector('[contenteditable="true"]') ||
-            editorElement.querySelector(".ProseMirror") ||
-            editorElement.querySelector(".ql-editor") || // Added for Quill editor
-            editorElement.querySelector("iframe")?.contentDocument?.body;
+        // Find the actual contenteditable element
+        const contentEditable = this.findContentEditableElement(editorElement);
 
         if (!contentEditable) {
             console.warn("Could not find contenteditable element");
@@ -64,6 +112,42 @@ class MentionsAutocomplete {
 
         this.createMentionsDropdown();
         this.attachMentionsListener(contentEditable, users);
+    }
+
+    // Enhanced method to find contenteditable element
+    findContentEditableElement(editorElement) {
+        // Try common selectors for different rich editor implementations
+        const selectors = [
+            '[contenteditable="true"]',
+            ".ProseMirror",
+            ".ql-editor",
+            ".trix-content",
+            ".fr-element",
+            "textarea",
+        ];
+
+        for (const selector of selectors) {
+            const element = editorElement.querySelector(selector);
+            if (element) {
+                return element;
+            }
+        }
+
+        // Try to find iframe for some rich editors
+        const iframe = editorElement.querySelector("iframe");
+        if (iframe && iframe.contentDocument) {
+            return iframe.contentDocument.body;
+        }
+
+        // If all else fails, check if the element itself is contenteditable
+        if (
+            editorElement.isContentEditable ||
+            editorElement.contentEditable === "true"
+        ) {
+            return editorElement;
+        }
+
+        return null;
     }
 
     createMentionsDropdown() {
@@ -82,14 +166,15 @@ class MentionsAutocomplete {
             overflow-y: auto;
             z-index: 1000;
             display: none;
+            min-width: 200px;
         `;
         document.body.appendChild(dropdown);
     }
 
     attachMentionsListener(element, users) {
-        // Validate users array
-        if (!Array.isArray(users)) {
-            console.warn("Users is not an array:", users);
+        // Validate users array again
+        if (!Array.isArray(users) || users.length === 0) {
+            console.warn("No valid users available for mentions");
             return;
         }
 
@@ -98,7 +183,7 @@ class MentionsAutocomplete {
 
         element.addEventListener("input", (e) => {
             const cursorPos = this.getCursorPosition(element);
-            const text = element.textContent || element.innerText || "";
+            const text = this.getElementText(element);
 
             // Find @ symbol before cursor
             let atIndex = -1;
@@ -155,6 +240,26 @@ class MentionsAutocomplete {
                 }
             }
         });
+
+        // Close dropdown when clicking outside
+        document.addEventListener("click", (e) => {
+            const dropdown = document.getElementById("mentions-dropdown");
+            if (
+                dropdown &&
+                !dropdown.contains(e.target) &&
+                !element.contains(e.target)
+            ) {
+                this.hideMentionsSuggestions();
+            }
+        });
+    }
+
+    // Helper method to get text from different element types
+    getElementText(element) {
+        if (element.tagName === "TEXTAREA") {
+            return element.value;
+        }
+        return element.textContent || element.innerText || "";
     }
 
     showMentionsSuggestions(element, users, query, mentionStart) {
@@ -164,14 +269,20 @@ class MentionsAutocomplete {
         // Filter users with better error handling
         const filteredUsers = users
             .filter((user) => {
-                // Ensure user object has required properties
-                if (!user || typeof user !== "object") return false;
-                if (!user.username || !user.name) return false;
+                try {
+                    // Ensure user object has required properties
+                    if (!user || typeof user !== "object") return false;
+                    if (!user.username || !user.name) return false;
 
-                return (
-                    user.username.toLowerCase().includes(query.toLowerCase()) ||
-                    user.name.toLowerCase().includes(query.toLowerCase())
-                );
+                    const lowercaseQuery = query.toLowerCase();
+                    return (
+                        user.username.toLowerCase().includes(lowercaseQuery) ||
+                        user.name.toLowerCase().includes(lowercaseQuery)
+                    );
+                } catch (error) {
+                    console.warn("Error filtering user:", user, error);
+                    return false;
+                }
             })
             .slice(0, 5);
 
@@ -184,9 +295,9 @@ class MentionsAutocomplete {
             .map(
                 (user, index) => `
             <div class="mention-item ${index === 0 ? "selected" : ""}"
-                 data-username="${user.username || ""}"
-                 data-name="${user.name || ""}"
-                 data-id="${user.id || ""}"
+                 data-username="${this.escapeHtml(user.username)}"
+                 data-name="${this.escapeHtml(user.name)}"
+                 data-id="${user.id}"
                  style="
                      padding: 8px 12px;
                      cursor: pointer;
@@ -194,22 +305,30 @@ class MentionsAutocomplete {
                      align-items: center;
                      gap: 8px;
                      background: ${index === 0 ? "#f3f4f6" : "transparent"};
-                 ">
-                <img src="${user.avatar || "/default-avatar.png"}" alt="${
-                    user.name || "User"
-                }" style="
-                    width: 24px;
-                    height: 24px;
+                     border-bottom: 1px solid #f3f4f6;
+                 "
+                 onmouseenter="this.style.background='#f3f4f6'"
+                 onmouseleave="this.style.background='${
+                     index === 0 ? "#f3f4f6" : "transparent"
+                 }'">
+                <img src="${user.avatar}" alt="${this.escapeHtml(
+                    user.name
+                )}" style="
+                    width: 32px;
+                    height: 32px;
                     border-radius: 50%;
                     object-fit: cover;
-                " onerror="this.src='/default-avatar.png'">
-                <div>
-                    <div style="font-weight: 500; font-size: 14px;">${
-                        user.name || "Unknown User"
-                    }</div>
-                    <div style="color: #6b7280; font-size: 12px;">@${
-                        user.username || "username"
-                    }</div>
+                    background: #f3f4f6;
+                " onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    user.name
+                )}&size=32&background=random'">
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 14px; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(
+                        user.name
+                    )}</div>
+                    <div style="color: #6b7280; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@${this.escapeHtml(
+                        user.username
+                    )}</div>
                 </div>
             </div>
         `
@@ -218,13 +337,30 @@ class MentionsAutocomplete {
 
         // Position dropdown
         const rect = element.getBoundingClientRect();
-        dropdown.style.left = rect.left + "px";
-        dropdown.style.top = rect.bottom + 5 + "px";
+        const dropdownRect = dropdown.getBoundingClientRect();
+
+        // Calculate position
+        let left = rect.left;
+        let top = rect.bottom + 5;
+
+        // Adjust if dropdown would go off screen
+        if (left + 200 > window.innerWidth) {
+            left = window.innerWidth - 210;
+        }
+
+        if (top + 200 > window.innerHeight) {
+            top = rect.top - 205;
+        }
+
+        dropdown.style.left = left + "px";
+        dropdown.style.top = top + "px";
         dropdown.style.display = "block";
 
         // Add click listeners
         dropdown.querySelectorAll(".mention-item").forEach((item) => {
-            item.addEventListener("click", () => {
+            item.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 this.insertMention(element, item.dataset, mentionStart);
             });
 
@@ -235,6 +371,13 @@ class MentionsAutocomplete {
                 item.classList.add("selected");
             });
         });
+    }
+
+    // Helper method to escape HTML
+    escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     hideMentionsSuggestions() {
@@ -255,10 +398,6 @@ class MentionsAutocomplete {
 
         items.forEach((item) => item.classList.remove("selected"));
         items[nextIndex].classList.add("selected");
-        items[nextIndex].style.background = "#f3f4f6";
-        items.forEach((item, i) => {
-            if (i !== nextIndex) item.style.background = "transparent";
-        });
     }
 
     selectPrevMention() {
@@ -273,55 +412,80 @@ class MentionsAutocomplete {
 
         items.forEach((item) => item.classList.remove("selected"));
         items[prevIndex].classList.add("selected");
-        items[prevIndex].style.background = "#f3f4f6";
-        items.forEach((item, i) => {
-            if (i !== prevIndex) item.style.background = "transparent";
-        });
     }
 
     insertMention(element, userData, mentionStart) {
-        const text = element.textContent || element.innerText || "";
-        const cursorPos = this.getCursorPosition(element);
+        try {
+            const isTextarea = element.tagName === "TEXTAREA";
+            const text = this.getElementText(element);
+            const cursorPos = this.getCursorPosition(element);
 
-        // Replace the @query with @username
-        const beforeMention = text.substring(0, mentionStart);
-        const afterMention = text.substring(cursorPos);
-        const mentionText = `@${userData.username || "user"} `;
+            // Replace the @query with @username
+            const beforeMention = text.substring(0, mentionStart);
+            const afterMention = text.substring(cursorPos);
+            const mentionText = `@${userData.username} `;
 
-        const newText = beforeMention + mentionText + afterMention;
+            const newText = beforeMention + mentionText + afterMention;
 
-        if (element.textContent !== undefined) {
-            element.textContent = newText;
-        } else {
-            element.innerText = newText;
+            if (isTextarea) {
+                element.value = newText;
+                // Set cursor position for textarea
+                const newCursorPos = mentionStart + mentionText.length;
+                element.setSelectionRange(newCursorPos, newCursorPos);
+            } else {
+                if (element.textContent !== undefined) {
+                    element.textContent = newText;
+                } else {
+                    element.innerText = newText;
+                }
+                // Set cursor position for contenteditable
+                const newCursorPos = mentionStart + mentionText.length;
+                this.setCursorPosition(element, newCursorPos);
+            }
+
+            this.hideMentionsSuggestions();
+
+            // Trigger input event to update the form
+            element.dispatchEvent(new Event("input", { bubbles: true }));
+
+            // Focus back to element
+            element.focus();
+        } catch (error) {
+            console.error("Error inserting mention:", error);
+            this.hideMentionsSuggestions();
         }
-
-        // Set cursor position after mention
-        const newCursorPos = mentionStart + mentionText.length;
-        this.setCursorPosition(element, newCursorPos);
-
-        this.hideMentionsSuggestions();
-
-        // Trigger input event to update the form
-        element.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
     getCursorPosition(element) {
-        const selection = window.getSelection();
-        if (selection.rangeCount === 0) return 0;
+        try {
+            if (element.tagName === "TEXTAREA") {
+                return element.selectionStart;
+            }
 
-        const range = selection.getRangeAt(0);
-        const preCaretRange = range.cloneRange();
-        preCaretRange.selectNodeContents(element);
-        preCaretRange.setEnd(range.endContainer, range.endOffset);
-        return preCaretRange.toString().length;
+            const selection = window.getSelection();
+            if (selection.rangeCount === 0) return 0;
+
+            const range = selection.getRangeAt(0);
+            const preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(element);
+            preCaretRange.setEnd(range.endContainer, range.endOffset);
+            return preCaretRange.toString().length;
+        } catch (error) {
+            console.warn("Error getting cursor position:", error);
+            return 0;
+        }
     }
 
     setCursorPosition(element, position) {
-        const range = document.createRange();
-        const selection = window.getSelection();
-
         try {
+            if (element.tagName === "TEXTAREA") {
+                element.setSelectionRange(position, position);
+                return;
+            }
+
+            const range = document.createRange();
+            const selection = window.getSelection();
+
             range.setStart(element.firstChild || element, position);
             range.setEnd(element.firstChild || element, position);
             selection.removeAllRanges();
