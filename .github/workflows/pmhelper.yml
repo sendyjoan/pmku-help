@@ -42,7 +42,7 @@ jobs:
         run: sudo apt-get install -y sshpass
 
       - name: Deploy to Production
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/master'
         run: |
           # Clean the old directory on the server
           sshpass -p 'c#)rgPMzNC2998@Vb4.M' ssh -o StrictHostKeyChecking=no root@147.93.30.80 "rm -rf /var/www/pm-helper"
