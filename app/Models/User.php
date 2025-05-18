@@ -32,6 +32,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
         'creation_token',
@@ -64,9 +65,19 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         parent::boot();
 
         static::creating(function (User $item) {
+            if (empty($item->username)) {
+                $item->username = self::generateUsernameFromEmail($item->email);
+            }
             if ($item->type == 'db') {
                 $item->password = bcrypt(uniqid());
                 $item->creation_token = Uuid::uuid4()->toString();
+            }
+        });
+
+        static::updating(function (User $item) {
+            // Regenerate username jika email berubah dan username kosong
+            if ($item->isDirty('email') && empty($item->username)) {
+                $item->username = self::generateUsernameFromEmail($item->email);
             }
         });
 
@@ -124,5 +135,46 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
     public function canAccessFilament(): bool
     {
         return true;
+    }
+    private static function generateUsernameFromEmail($email)
+    {
+        // Ambil bagian sebelum @ dari email
+        $baseUsername = strtolower(explode('@', $email)[0]);
+
+        // Bersihkan karakter yang tidak diinginkan
+        $baseUsername = preg_replace('/[^a-z0-9_]/', '', $baseUsername);
+
+        // Cek apakah username sudah ada
+        $username = $baseUsername;
+        $counter = 1;
+
+        while (User::where('username', $username)->exists()) {
+            $username = $baseUsername . $counter;
+            $counter++;
+        }
+
+        return $username;
+    }
+    public static function getValidationRules($ignoreId = null)
+    {
+        return [
+            'username' => [
+                'required',
+                'unique:users,username' . ($ignoreId ? ",$ignoreId" : ''),
+                'regex:/^[a-zA-Z0-9_]+$/',
+                'min:3',
+                'max:30'
+            ]
+        ];
+    }
+
+    public static function getValidationMessages()
+    {
+        return [
+            'username.regex' => 'Username can only contain letters, numbers, and underscores.',
+            'username.unique' => 'This username is already taken.',
+            'username.min' => 'Username must be at least 3 characters.',
+            'username.max' => 'Username cannot exceed 30 characters.'
+        ];
     }
 }

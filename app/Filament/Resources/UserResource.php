@@ -50,6 +50,12 @@ class UserResource extends Resource
                                     ->required()
                                     ->maxLength(255),
 
+                                Forms\Components\TextInput::make('username')
+                                    ->label(__('Username'))
+                                    ->unique(User::class, 'username', ignoreRecord: true)
+                                    ->helperText(__('Leave empty to auto-generate from email'))
+                                    ->maxLength(255),
+
                                 Forms\Components\TextInput::make('email')
                                     ->label(__('Email address'))
                                     ->email()
@@ -79,7 +85,10 @@ class UserResource extends Resource
                     ->label(__('Full name'))
                     ->sortable()
                     ->searchable(),
-
+                Tables\Columns\TextColumn::make('username')
+                    ->label(__('Username'))
+                    ->sortable()
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('email')
                     ->label(__('Email address'))
                     ->sortable()

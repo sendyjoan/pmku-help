@@ -162,8 +162,12 @@ class ViewTicket extends ViewRecord implements HasForms
         return [
             RichEditor::make('comment')
                 ->disableLabel()
-                ->placeholder(__('Type a new comment'))
+                ->placeholder(__('Type a new comment, use @username to mention users'))
                 ->required()
+                ->extraInputAttributes([
+                    'data-enable-mentions' => 'true',
+                    'data-users' => json_encode($this->getAvailableUsers())
+                ])
         ];
     }
 
@@ -257,6 +261,66 @@ class ViewTicket extends ViewRecord implements HasForms
         // Attach CC users if provided
         if (isset($this->ccUsers)) {
             $this->record->ccUsers()->sync($this->ccUsers);
+        }
+    }
+    private function getAvailableUsers()
+    {
+        try {
+            // Get users from project + watchers + all users for flexibility
+            $projectUsers = collect();
+            $watchers = collect();
+
+            if ($this->record && $this->record->project) {
+                $projectUsers = $this->record->project->users ?? collect();
+            }
+
+            if ($this->record) {
+                $watchers = $this->record->watchers ?? collect();
+            }
+
+            // Merge and get unique users
+            $users = $projectUsers->merge($watchers)->unique('id');
+
+            // If no users found, get all users as fallback
+            if ($users->isEmpty()) {
+                $users = User::all();
+            }
+
+            return $users->map(function ($user) {
+                // Ensure all required fields exist
+                return [
+                    'id' => $user->id ?? 0,
+                    'username' => $user->username ?? 'user' . $user->id,
+                    'name' => $user->name ?? 'Unknown User',
+                    'avatar' => $this->getUserAvatar($user)
+                ];
+            })->filter(function($user) {
+                // Filter out users without username
+                return !empty($user['username']);
+            })->values()->toArray();
+
+        } catch (\Exception $e) {
+            \Log::error('Error getting available users for mentions: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function getUserAvatar($user)
+    {
+        try {
+            if (method_exists($user, 'getFilamentAvatarUrl')) {
+                return $user->getFilamentAvatarUrl();
+            }
+
+            // Fallback to gravatar or default
+            if ($user->email) {
+                $hash = md5(strtolower(trim($user->email)));
+                return "https://www.gravatar.com/avatar/{$hash}?d=mp&s=100";
+            }
+
+            return '/images/default-avatar.png'; // Default avatar path
+        } catch (\Exception $e) {
+            return '/images/default-avatar.png';
         }
     }
 }

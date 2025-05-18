@@ -381,7 +381,56 @@
         <div class="flex flex-col w-full md:w-1/3"></div>
 
     </div>
+    @push('scripts')
+    <script>
+        window.addEventListener('shareTicket', (e) => {
+            const text = e.detail.url;
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+            } catch (err) {
+                console.error('Unable to copy to clipboard', err);
+            }
+            document.body.removeChild(textArea);
+            new Notification()
+                .success()
+                .title('{{ __('Url copied to clipboard') }}')
+                .duration(6000)
+                .send()
+        });
+    </script>
 
+    {{-- Include Mentions Script --}}
+    <script src="{{ asset('js/mentions.js') }}"></script>
+
+    {{-- Additional CSS for Mentions --}}
+    <style>
+        .mentions-dropdown {
+            font-family: inherit;
+        }
+
+        .mention-item:hover {
+            background-color: #f3f4f6 !important;
+        }
+
+        .mention-item.selected {
+            background-color: #f3f4f6 !important;
+        }
+
+        /* Style for mentioned users in content */
+        .mention {
+            background-color: #e0f2fe;
+            color: #0277bd;
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+    </style>
+    @endpush
 </x-filament::page>
 
 @push('scripts')

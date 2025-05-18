@@ -54,8 +54,8 @@ class TicketComment extends Model
         $usernames = $matches[1];
 
         if (!empty($usernames)) {
-            return User::whereIn('name', $usernames)
-                      ->orWhereIn('email', $usernames)
+            // Cari berdasarkan username yang baru saja kita tambahkan
+            return User::whereIn('username', $usernames)
                       ->pluck('id')
                       ->toArray();
         }
