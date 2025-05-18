@@ -19,6 +19,7 @@ use Filament\Resources\Pages\EditRecord;
 use Filament\Resources\Resource;
 use Filament\Resources\Table;
 use Filament\Tables;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\HtmlString;
 
 class TicketResource extends Resource
@@ -186,7 +187,11 @@ class TicketResource extends Resource
                                 Forms\Components\TextInput::make('estimation')
                                     ->label(__('Estimation time'))
                                     ->numeric()
-                                    ->columnSpan(2),
+                                    ->columnSpan(4),
+
+                                Forms\Components\DatePicker::make('due_date')
+                                    ->label(__('Due Date'))
+                                    ->columnSpan(4),
                             ]),
 
                         Forms\Components\Repeater::make('relations')
@@ -265,7 +270,7 @@ class TicketResource extends Resource
                 ->label(__('Status'))
                 ->formatStateUsing(fn($record) => new HtmlString('
                             <div class="flex items-center gap-2 mt-1">
-                                <span class="filament-tables-color-column relative flex h-6 w-6 rounded-md"
+                                <span class="relative flex w-6 h-6 rounded-md filament-tables-color-column"
                                     style="background-color: ' . $record->status->color . '"></span>
                                 <span>' . $record->status->name . '</span>
                             </div>
@@ -285,13 +290,19 @@ class TicketResource extends Resource
                 ->label(__('Priority'))
                 ->formatStateUsing(fn($record) => new HtmlString('
                             <div class="flex items-center gap-2 mt-1">
-                                <span class="filament-tables-color-column relative flex h-6 w-6 rounded-md"
+                                <span class="relative flex w-6 h-6 rounded-md filament-tables-color-column"
                                     style="background-color: ' . $record->priority->color . '"></span>
                                 <span>' . $record->priority->name . '</span>
                             </div>
                         '))
                 ->sortable()
                 ->searchable(),
+
+            Tables\Columns\TextColumn::make('due_date')
+                ->label(__('Due Date'))
+                ->date()
+                ->sortable()
+                ->color(fn ($record) => $record->due_date && $record->due_date->isPast() ? 'danger' : null),
 
             Tables\Columns\TextColumn::make('created_at')
                 ->label(__('Created at'))
@@ -339,6 +350,10 @@ class TicketResource extends Resource
                     ->label(__('Priority'))
                     ->multiple()
                     ->options(fn() => TicketPriority::all()->pluck('name', 'id')->toArray()),
+
+                Tables\Filters\Filter::make('overdue')
+                    ->query(fn (Builder $query): Builder => $query->where('due_date', '<', now()))
+                    ->label(__('Overdue')),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

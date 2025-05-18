@@ -104,7 +104,7 @@ class DataController extends Controller
             "pID" => ($epic?->id ?? "N") . $ticket->id,
             "pName" => $ticket->name,
             "pStart" => "",
-            "pEnd" => "",
+            "pEnd" => $ticket->due_date ? $ticket->due_date->format('Y-m-d') . " 23:59:59" : "",
             "pClass" => "g-custom-task",
             "pLink" => "",
             "pMile" => 0,
@@ -115,13 +115,15 @@ class DataController extends Controller
             "pOpen" => 1,
             "pDepend" => "",
             "pCaption" => "",
-            "pNotes" => "",
+            "pNotes" => $ticket->due_date && $ticket->due_date->isPast() ? "OVERDUE" : "",
             "pBarText" => "",
             "meta" => [
                 "id" => $ticket->id,
                 "epic" => false,
                 "parent" => $epic?->id ?? null,
-                "slug" => $ticket->code
+                "slug" => $ticket->code,
+                "due_date" => $ticket->due_date?->format('Y-m-d'),
+                "is_overdue" => $ticket->due_date && $ticket->due_date->isPast()
             ]
         ];
     }

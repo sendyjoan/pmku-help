@@ -22,7 +22,10 @@ class Ticket extends Model implements HasMedia
     protected $fillable = [
         'name', 'content', 'owner_id', 'responsible_id',
         'status_id', 'project_id', 'code', 'order', 'type_id',
-        'priority_id', 'estimation', 'epic_id', 'sprint_id'
+        'priority_id', 'estimation', 'epic_id', 'sprint_id', 'due_date'
+    ];
+    protected $casts = [
+        'due_date' => 'date',
     ];
 
     public static function boot()
@@ -219,6 +222,26 @@ class Ticket extends Model implements HasMedia
     {
         return new Attribute(
             get: fn() => $this->estimationProgress
+        );
+    }
+    public function isOverdue(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                return $this->due_date && $this->due_date->isPast();
+            }
+        );
+    }
+
+    public function daysUntilDue(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                if (!$this->due_date) {
+                    return null;
+                }
+                return now()->diffInDays($this->due_date, false);
+            }
         );
     }
 }

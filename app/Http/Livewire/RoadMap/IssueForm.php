@@ -167,6 +167,9 @@ class IssueForm extends Component implements HasForms
                         ->label(__('Estimation time'))
                         ->numeric()
                         ->columnSpan(4),
+                    Forms\Components\DatePicker::make('due_date')
+                        ->label(__('Due Date'))
+                        ->columnSpan(4),
                 ]),
         ];
     }
