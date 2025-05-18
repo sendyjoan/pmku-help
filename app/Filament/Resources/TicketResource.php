@@ -172,6 +172,13 @@ class TicketResource extends Resource
                                             ->options(fn() => TicketPriority::all()->pluck('name', 'id')->toArray())
                                             ->default(fn() => TicketPriority::where('is_default', true)->first()?->id)
                                             ->required(),
+                                        Forms\Components\Select::make('cc_users')
+                                            ->label(__('CC Users'))
+                                            ->multiple()
+                                            ->searchable()
+                                            ->options(fn() => User::all()->pluck('name', 'id')->toArray())
+                                            ->helperText(__('Select users to be CC\'d on this ticket'))
+                                            ->columnSpan(2),
                                     ]),
                             ]),
 

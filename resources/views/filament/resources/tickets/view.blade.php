@@ -208,6 +208,20 @@
                     @endif
                 </div>
             </div>
+            <div class="flex flex-col w-full gap-1 pt-3">
+                <span class="text-sm font-medium text-gray-500">
+                    {{ __('CC Users') }}
+                </span>
+                <div class="flex items-center w-full gap-1 text-gray-500">
+                    @if($record->ccUsers->count())
+                    @foreach($record->ccUsers as $ccUser)
+                    <x-user-avatar :user="$ccUser" />
+                    @endforeach
+                    @else
+                    {{ '-' }}
+                    @endif
+                </div>
+            </div>
 
             <div class="flex flex-col w-full gap-1 pt-3">
                 <span class="text-sm font-medium text-gray-500">

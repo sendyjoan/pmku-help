@@ -156,6 +156,10 @@ class Ticket extends Model implements HasMedia
                     $users->push($this->responsible);
                 }
                 return $users->unique('id');
+                foreach ($this->ccUsers as $ccUser) {
+                    $users->push($ccUser);
+                }
+                return $users->unique('id');
             }
         );
     }
@@ -243,5 +247,10 @@ class Ticket extends Model implements HasMedia
                 return now()->diffInDays($this->due_date, false);
             }
         );
+    }
+    public function ccUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'ticket_cc', 'ticket_id', 'user_id')
+                    ->withTimestamps();
     }
 }

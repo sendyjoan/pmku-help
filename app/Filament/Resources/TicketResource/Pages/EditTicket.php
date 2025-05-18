@@ -17,4 +17,25 @@ class EditTicket extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Handle CC users
+        if (isset($data['cc_users'])) {
+            $ccUsers = $data['cc_users'];
+            unset($data['cc_users']);
+
+            // We'll attach CC users after the ticket is saved
+            $this->ccUsers = $ccUsers;
+        }
+
+        return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        // Attach CC users if provided
+        if (isset($this->ccUsers)) {
+            $this->record->ccUsers()->sync($this->ccUsers);
+        }
+    }
 }
