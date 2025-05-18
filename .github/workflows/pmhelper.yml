@@ -1,0 +1,71 @@
+name: Deployment of PMHelper Bintang
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚚 Get latest code
+        uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: |
+          composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+          composer dump-autoload
+          npm ci
+          npm run build
+          php artisan config:clear
+
+      - name: Copy Environment File
+        run: |
+          cp .env.pmhelperbintang .env
+
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+
+      - name: Deploy to Production
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Clean the old directory on the server
+          sshpass -p 'c#)rgPMzNC2998@Vb4.M' ssh -o StrictHostKeyChecking=no root@147.93.30.80 "rm -rf /var/www/pm-helper"
+
+          # Sync new files to the server
+          sshpass -p 'c#)rgPMzNC2998@Vb4.M' rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ root@147.93.30.80:/var/www/pm-helper/
+
+          sshpass -p 'c#)rgPMzNC2998@Vb4.M' ssh -o StrictHostKeyChecking=no root@147.93.30.80 << 'EOF'
+            cd /var/www/pm-helper
+
+          # Set ownership for the entire project
+          chown -R www-data:www-data /var/www/pm-helper
+
+          # Set appropriate permissions for storage and cache directories
+          chmod -R 775 /var/www/pm-helper/storage /var/www/pm-helper/bootstrap/cache
+
+            # Laravel Commands
+            php8.2 artisan key:generate --ansi
+            php8.2 artisan migrate --force
+            php8.2 artisan optimize:clear
+            php8.2 artisan storage:link
+            php8.2 artisan config:clear
+            php8.2 artisan cache:clear
+            php8.2 artisan route:clear
+            php8.2 artisan view:clear
+          EOF
