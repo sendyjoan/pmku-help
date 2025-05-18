@@ -44,9 +44,6 @@ jobs:
       - name: Deploy to Production
         if: github.ref == 'refs/heads/master'
         run: |
-          # Clean the old directory on the server
-          sshpass -p 'c#)rgPMzNC2998@Vb4.M' ssh -o StrictHostKeyChecking=no root@147.93.30.80 "rm -rf /var/www/pm-helper"
-
           # Sync new files to the server
           sshpass -p 'c#)rgPMzNC2998@Vb4.M' rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ root@147.93.30.80:/var/www/pm-helper/
 
@@ -68,4 +65,5 @@ jobs:
             php8.2 artisan cache:clear
             php8.2 artisan route:clear
             php8.2 artisan view:clear
+            php8.2 artisan storage:link
           EOF
