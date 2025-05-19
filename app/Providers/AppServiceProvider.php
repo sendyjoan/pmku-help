@@ -38,6 +38,24 @@ class AppServiceProvider extends ServiceProvider
             Filament::registerTheme(
                 app(Vite::class)('resources/css/filament.scss'),
             );
+            $appName = config('app.name');
+            if (config('app.logo')) {
+                // Jika ada logo di environment, gunakan logo
+                Filament::registerRenderHook(
+                    'body.start',
+                    fn (): string => '<style>
+                        .filament-main-sidebar-brand {
+                            display: flex;
+                            align-items: center;
+                            gap: 0.75rem;
+                        }
+                        .filament-main-sidebar-brand img {
+                            height: 2rem;
+                            width: auto;
+                        }
+                    </style>'
+                );
+            }
         });
 
         // Register tippy styles

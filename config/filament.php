@@ -74,6 +74,7 @@ return [
     */
 
     'brand' => env('APP_NAME'),
+    'brand_logo' => env('APP_LOGO'),
 
     /*
     |--------------------------------------------------------------------------
@@ -171,7 +172,7 @@ return [
     |
     */
 
-    'dark_mode' => false,
+    'dark_mode' => env('FILAMENT_DARK_MODE', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -242,7 +243,7 @@ return [
         ],
         'max_content_width' => 'full',
         'notifications' => [
-            'vertical_alignment' => 'bottom',
+            'vertical_alignment' => 'top',
             'alignment' => 'right',
         ],
         'sidebar' => [
