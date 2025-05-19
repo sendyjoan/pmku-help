@@ -22,6 +22,7 @@ use Filament\Pages\Actions;
 use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Facades\Excel;
+use Filament\Tables\Columns\TextColumn;
 
 class ViewTicket extends ViewRecord implements HasForms
 {
@@ -367,5 +368,56 @@ class ViewTicket extends ViewRecord implements HasForms
         // Use UI Avatars as fallback
         $name = urlencode($user->name ?? 'User');
         return "https://ui-avatars.com/api/?name={$name}&size=40&background=random";
+    }
+
+    // Method untuk mendapatkan comments dengan formatted content
+    public function getFormattedComments()
+    {
+        return $this->record->comments->map(function ($comment) {
+            return [
+                'id' => $comment->id,
+                'user' => $comment->user,
+                'content' => $this->formatMentions($comment->content),
+                'created_at' => $comment->created_at,
+                'updated_at' => $comment->updated_at,
+            ];
+        });
+    }
+
+    // Method untuk format mentions dalam content
+    private function formatMentions($content)
+    {
+        return preg_replace_callback(
+            '/@([a-zA-Z0-9_]+)/',
+            function ($matches) {
+                $username = $matches[1];
+
+                // Cari user berdasarkan username
+                $user = User::where('username', $username)->first();
+
+                if ($user) {
+                    return sprintf(
+                        '<span class="mention-tag" data-user-id="%d" style="
+                            background-color: #dbeafe;
+                            color: #1e40af;
+                            padding: 2px 6px;
+                            border-radius: 12px;
+                            font-size: 0.875rem;
+                            display: inline-block;
+                            margin: 0 2px;
+                            text-decoration: none;
+                            border: 1px solid #93c5fd;
+                            cursor: pointer;
+                        ">@%s</span>',
+                        $user->id,
+                        htmlspecialchars($username)
+                    );
+                }
+
+                // Jika user tidak ditemukan, kembalikan mention biasa
+                return '@' . htmlspecialchars($username);
+            },
+            $content
+        );
     }
 }

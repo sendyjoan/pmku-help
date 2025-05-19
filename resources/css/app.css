@@ -1,0 +1,30 @@
+.mention-tag {
+    background-color: #e5e7eb !important;
+    color: #374151 !important;
+    padding: 2px 6px !important;
+    border-radius: 12px !important;
+    font-size: 0.875rem !important;
+    display: inline-block !important;
+    margin: 0 2px !important;
+    text-decoration: none !important;
+    border: 1px solid #d1d5db !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease !important;
+}
+
+.mention-tag:hover {
+    background-color: #d1d5db !important;
+    color: #111827 !important;
+}
+
+/* Styling untuk mention di comment yang sudah ada */
+.comment-content .mention-tag {
+    background-color: #dbeafe !important;
+    color: #1e40af !important;
+    border: 1px solid #93c5fd !important;
+}
+
+.comment-content .mention-tag:hover {
+    background-color: #bfdbfe !important;
+    color: #1d4ed8 !important;
+}

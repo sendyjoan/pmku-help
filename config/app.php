@@ -12,7 +12,7 @@ return [
     | This value is the logo used in the application.
     |
     */
-    'logo' => null,
+    'logo' => env('APP_LOGO',null),
 
     /*
     |--------------------------------------------------------------------------
@@ -79,7 +79,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------
