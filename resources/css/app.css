@@ -49,3 +49,16 @@
 .modal-overlay {
     z-index: 9999;
 }
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: #f3f4f6;
+    border: 2px dashed #d1d5db;
+}
+.handle:hover {
+    color: #6b7280;
+    cursor: grab;
+}
+
+.handle:active {
+    cursor: grabbing;
+}

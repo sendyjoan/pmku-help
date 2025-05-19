@@ -171,5 +171,159 @@ class Kanban extends Page implements HasForms
         // Emit event ke modal component
         $this->emit('closeTicketModalComponent');
     }
+    /**
+     * Handle ticket position update from drag and drop
+     */
+    public function recordUpdated($ticketId, $newIndex, $newStatusId)
+    {
+        try {
+            // Find the ticket
+            $ticket = Ticket::findOrFail($ticketId);
+
+            // Verify ticket belongs to current project
+            if ($ticket->project_id !== $this->project->id) {
+                throw new \Exception('Unauthorized');
+            }
+
+            // Update ticket status
+            $oldStatusId = $ticket->status_id;
+            $ticket->status_id = $newStatusId;
+            $ticket->save();
+
+            // Update ticket order
+            $this->updateTicketOrder($newStatusId, $ticketId, $newIndex);
+
+            // Reorder old status if status changed
+            if ($oldStatusId != $newStatusId) {
+                $this->updateTicketOrder($oldStatusId);
+            }
+
+            // Return success response
+            return [
+                'success' => true,
+                'message' => 'Ticket updated successfully'
+            ];
+
+        } catch (\Exception $e) {
+            // Log error for debugging
+            \Log::error('Kanban update failed', [
+                'ticketId' => $ticketId,
+                'error' => $e->getMessage()
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Update ticket order within a status
+     */
+    private function updateTicketOrder($statusId, $targetTicketId = null, $targetIndex = null)
+    {
+        // Get all tickets in this status
+        $tickets = Ticket::where('status_id', $statusId)
+            ->where('project_id', $this->project->id)
+            ->orderBy('order')
+            ->get();
+
+        // If moving a specific ticket, reorder the collection
+        if ($targetTicketId && $targetIndex !== null) {
+            $targetTicket = $tickets->where('id', $targetTicketId)->first();
+
+            if ($targetTicket) {
+                // Remove target ticket from current position
+                $tickets = $tickets->reject(fn($t) => $t->id == $targetTicketId)->values();
+
+                // Insert at new position
+                $tickets->splice($targetIndex, 0, [$targetTicket]);
+            }
+        }
+
+        // Update order field for all tickets
+        foreach ($tickets as $index => $ticket) {
+            if ($ticket->order != $index) {
+                $ticket->order = $index;
+                $ticket->timestamps = false; // Don't update timestamps for reordering
+                $ticket->save();
+            }
+        }
+    }
+
+    /**
+     * Check if user can update the ticket
+     */
+    private function canUpdateTicket(Ticket $ticket): bool
+    {
+        $user = auth()->user();
+
+        // Check if user has general permission to update tickets
+        if ($user->can('update', $ticket)) {
+            return true;
+        }
+
+        // Check if user is ticket owner or responsible
+        if ($ticket->owner_id === $user->id || $ticket->responsible_id === $user->id) {
+            return true;
+        }
+
+        // Check if user is project owner or member
+        if ($this->project->owner_id === $user->id ||
+            $this->project->users->contains($user)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Reorder tickets within a status
+     */
+    private function reorderTicketsInStatus($statusId, $targetTicketId = null, $targetIndex = null)
+    {
+        // Get all tickets in this status, ordered by current order
+        $tickets = Ticket::where('status_id', $statusId)
+            ->where('project_id', $this->project->id)
+            ->orderBy('order')
+            ->get();
+
+        // If we're moving a specific ticket
+        if ($targetTicketId && $targetIndex !== null) {
+            // Find the target ticket
+            $targetTicket = $tickets->where('id', $targetTicketId)->first();
+
+            if (!$targetTicket) {
+                \Log::error('Target ticket not found for reordering', [
+                    'targetTicketId' => $targetTicketId,
+                    'statusId' => $statusId
+                ]);
+                return;
+            }
+
+            // Remove the ticket from its current position
+            $tickets = $tickets->reject(function($ticket) use ($targetTicketId) {
+                return $ticket->id == $targetTicketId;
+            })->values();
+
+            // Insert the ticket at the new position
+            $tickets->splice($targetIndex, 0, [$targetTicket]);
+        }
+
+        // Update the order field for all tickets
+        foreach ($tickets as $index => $ticket) {
+            if ($ticket->order != $index) {
+                $ticket->order = $index;
+                $ticket->timestamps = false; // Don't update timestamps for reordering
+                $ticket->save();
+            }
+        }
+    }
+
+    /**
+     * Alternative method name for backward compatibility
+     */
+    public function updateTicketPosition($ticketId, $newIndex, $newStatusId)
+    {
+        return $this->recordUpdated($ticketId, $newIndex, $newStatusId);
+    }
 
 }
