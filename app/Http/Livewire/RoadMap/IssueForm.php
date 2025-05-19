@@ -20,13 +20,19 @@ class IssueForm extends Component implements HasForms
     use InteractsWithForms;
 
     public Project|null $project = null;
+    public $defaultStatusId = null;
     public array $epics;
     public array $sprints;
 
-    public function mount()
+    public function mount($defaultStatusId = null)
     {
+        $this->defaultStatusId = $defaultStatusId;
         $this->initProject($this->project?->id);
-        if ($this->project?->status_type === 'custom') {
+
+        // Determine default status
+        if ($this->defaultStatusId) {
+            $defaultStatus = $this->defaultStatusId;
+        } elseif ($this->project?->status_type === 'custom') {
             $defaultStatus = TicketStatus::where('project_id', $this->project->id)
                 ->where('is_default', true)
                 ->first()
@@ -37,6 +43,7 @@ class IssueForm extends Component implements HasForms
                 ->first()
                 ?->id;
         }
+
         $this->form->fill([
             'project_id' => $this->project?->id ?? null,
             'owner_id' => auth()->user()->id,
@@ -177,7 +184,8 @@ class IssueForm extends Component implements HasForms
     public function submit(): void
     {
         $data = $this->form->getState();
-        Ticket::create($data);
+        $ticket = Ticket::create($data);
+
         Filament::notify('success', __('Ticket successfully saved'));
         $this->cancel(true);
     }

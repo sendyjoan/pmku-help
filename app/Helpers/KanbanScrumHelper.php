@@ -17,6 +17,7 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\HtmlString;
 
+
 trait KanbanScrumHelper
 {
 
@@ -30,6 +31,8 @@ trait KanbanScrumHelper
     public $includeNotAffectedTickets = false;
 
     public bool $ticket = false;
+
+    public ?int $selectedStatusId = null;
 
     protected function formSchema(): array
     {
@@ -63,14 +66,12 @@ trait KanbanScrumHelper
                         ->content(new HtmlString('
                             <button type="button"
                                     wire:click="filter" wire:loading.attr="disabled"
-                                    class="bg-primary-500 px-3 py-2 text-white rounded hover:bg-primary-600
-                                    disabled:bg-primary-300">
+                                    class="px-3 py-2 text-white rounded bg-primary-500 hover:bg-primary-600 disabled:bg-primary-300">
                                 ' . __('Filter') . '
                             </button>
                             <button type="button"
                                     wire:click="resetFilters" wire:loading.attr="disabled"
-                                    class="ml-2 bg-gray-800 px-3 py-2 text-white rounded hover:bg-gray-900
-                                    disabled:bg-gray-300">
+                                    class="px-3 py-2 ml-2 text-white bg-gray-800 rounded hover:bg-gray-900 disabled:bg-gray-300">
                                 ' . __('Reset filters') . '
                             </button>
                         ')),
@@ -99,7 +100,7 @@ trait KanbanScrumHelper
                     'title' => $item->name,
                     'color' => $item->color,
                     'size' => $query->count(),
-                    'add_ticket' => $item->is_default && auth()->user()->can('Create ticket')
+                    'add_ticket' => auth()->user()->can('Create ticket')
                 ];
             });
     }
@@ -165,6 +166,44 @@ trait KanbanScrumHelper
             Filament::notify('success', __('Ticket updated'));
         }
     }
+    public function createTicketWithStatusDirect(int $statusId): void
+    {
+        try {
+            // Get the status
+            $status = TicketStatus::find($statusId);
+            if (!$status) {
+                Filament::notify('danger', __('Status not found'));
+                return;
+            }
+
+            // Get default values
+            $defaultType = TicketType::where('is_default', true)->first();
+            $defaultPriority = TicketPriority::where('is_default', true)->first();
+
+            // Create new ticket with specific status
+            $ticket = Ticket::create([
+                'name' => 'New Ticket',
+                'content' => 'Please update this ticket with proper details...',
+                'project_id' => $this->project->id,
+                'owner_id' => auth()->user()->id,
+                'status_id' => $statusId,
+                'type_id' => $defaultType?->id,
+                'priority_id' => $defaultPriority?->id,
+            ]);
+
+            // Show success notification
+            Filament::notify('success', __('Ticket created in :status. Please update the details.', [
+                'status' => $status->name
+            ]));
+
+            // Redirect to ticket edit page
+            $this->redirect(route('filament.resources.tickets.edit', $ticket));
+
+        } catch (\Exception $e) {
+            // Show error notification
+            Filament::notify('danger', __('Failed to create ticket: ') . $e->getMessage());
+        }
+    }
 
     public function isMultiProject(): bool
     {
@@ -184,6 +223,13 @@ trait KanbanScrumHelper
 
     public function createTicket(): void
     {
+        $this->selectedStatusId = null;
+        $this->ticket = true;
+    }
+
+    public function createTicketWithStatus(int $statusId): void
+    {
+        $this->selectedStatusId = $statusId;
         $this->ticket = true;
     }
 
@@ -195,17 +241,31 @@ trait KanbanScrumHelper
         }
     }
 
+    public function refreshBoard(): void
+    {
+        $this->filter();
+        Filament::notify('success', __('Board refreshed'));
+    }
+
+    public function getProjectTitle(): string
+    {
+        return $this->project
+            ? $this->project->name
+            : __('No project selected');
+    }
+
     protected function kanbanHeading(): string|Htmlable
     {
-        $heading = '<div class="w-full flex flex-col gap-1">';
+        $heading = '<div class="flex flex-col w-full gap-1">';
         $heading .= '<a href="' . route('filament.pages.board') . '"
-                            class="text-primary-500 text-xs font-medium hover:underline">';
+                            class="text-xs font-medium text-primary-500 hover:underline">';
         $heading .= __('Back to board');
         $heading .= '</a>';
         $heading .= '<div class="flex flex-col gap-1">';
-        $heading .= '<span>' . __('Kanban');
+        $heading .= '<span class="text-2xl font-bold text-gray-900">' . __('Kanban');
         if ($this->project) {
             $heading .= ' - ' . $this->project->name . '</span>';
+            $heading .= '<span class="text-sm text-gray-600">' . __('Manage your project tickets with drag & drop') . '</span>';
         } else {
             $heading .= '</span><span class="text-xs text-gray-400">'
                 . __('Only default statuses are listed when no projects selected')
@@ -213,20 +273,36 @@ trait KanbanScrumHelper
         }
         $heading .= '</div>';
         $heading .= '</div>';
+
+        // Add JavaScript for keyboard shortcut (since button now has ID from actions)
+        $heading .= '<script>
+                        document.addEventListener("DOMContentLoaded", function() {
+                            // Keyboard shortcut Ctrl+T / Cmd+T
+                            document.addEventListener("keydown", function(e) {
+                                if ((e.ctrlKey || e.metaKey) && e.key === "t") {
+                                    e.preventDefault();
+                                    const btn = document.getElementById("createTicketBtn");
+                                    if (btn) btn.click();
+                                }
+                            });
+                        });
+                    </script>';
+
         return new HtmlString($heading);
     }
 
     protected function scrumHeading(): string|Htmlable
     {
-        $heading = '<div class="w-full flex flex-col gap-1">';
+        $heading = '<div class="flex flex-col w-full gap-1">';
         $heading .= '<a href="' . route('filament.pages.board') . '"
-                            class="text-primary-500 text-xs font-medium hover:underline">';
+                            class="text-xs font-medium text-primary-500 hover:underline">';
         $heading .= __('Back to board');
         $heading .= '</a>';
         $heading .= '<div class="flex flex-col gap-1">';
-        $heading .= '<span>' . __('Scrum');
+        $heading .= '<span class="text-2xl font-bold text-gray-900">' . __('Scrum');
         if ($this->project) {
             $heading .= ' - ' . $this->project->name . '</span>';
+            $heading .= '<span class="text-sm text-gray-600">' . __('Manage your sprint tickets') . '</span>';
         } else {
             $heading .= '</span><span class="text-xs text-gray-400">'
                 . __('Only default statuses are listed when no projects selected')
@@ -234,6 +310,21 @@ trait KanbanScrumHelper
         }
         $heading .= '</div>';
         $heading .= '</div>';
+
+        // Add JavaScript for keyboard shortcut
+        $heading .= '<script>
+                        document.addEventListener("DOMContentLoaded", function() {
+                            // Keyboard shortcut Ctrl+T / Cmd+T
+                            document.addEventListener("keydown", function(e) {
+                                if ((e.ctrlKey || e.metaKey) && e.key === "t") {
+                                    e.preventDefault();
+                                    const btn = document.getElementById("createTicketBtn");
+                                    if (btn) btn.click();
+                                }
+                            });
+                        });
+                    </script>';
+
         return new HtmlString($heading);
     }
 
@@ -241,9 +332,9 @@ trait KanbanScrumHelper
     {
         if ($this->project?->currentSprint) {
             return new HtmlString(
-                '<div class="w-full flex flex-col gap-1">'
-                . '<div class="w-full flex items-center gap-2">'
-                . '<span class="bg-danger-500 px-2 py-1 rounded text-white text-sm">'
+                '<div class="flex flex-col w-full gap-1">'
+                . '<div class="flex items-center w-full gap-2">'
+                . '<span class="px-2 py-1 text-sm text-white rounded bg-danger-500">'
                 . $this->project->currentSprint->name
                 . '</span>'
                 . '<span class="text-xs text-gray-400">'
@@ -256,7 +347,7 @@ trait KanbanScrumHelper
                 )
                 . '</span>'
                 . '</div>'
-                . ($this->project->nextSprint ? '<span class="text-xs text-primary-500 font-medium">'
+                . ($this->project->nextSprint ? '<span class="text-xs font-medium text-primary-500">'
                     . __('Next sprint:') . ' ' . $this->project->nextSprint->name . ' - '
                     . __('Starts at:') . ' ' . $this->project->nextSprint->starts_at->format(__('Y-m-d'))
                     . ' (' . __('in') . ' ' . $this->project->nextSprint->starts_at->diffForHumans() . ')'
