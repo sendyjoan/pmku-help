@@ -28,3 +28,24 @@
     background-color: #bfdbfe !important;
     color: #1d4ed8 !important;
 }
+.kanban-record {
+    position: relative;
+}
+
+.kanban-record .handle {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.kanban-record:hover .handle {
+    opacity: 1;
+}
+
+.ticket-content {
+    padding-right: 2rem; /* Make space for drag handle */
+}
+
+/* Ensure modal appears above everything */
+.modal-overlay {
+    z-index: 9999;
+}

@@ -1,14 +1,27 @@
-<div class="kanban-record handle" data-id="{{ $record['id'] }}">
+<div class="kanban-record" data-id="{{ $record['id'] }}" data-ticket-id="{{ $record['id'] }}">
+    <div class="absolute z-10 text-gray-400 cursor-move handle top-2 right-2 hover:text-gray-600" title="Drag to move">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <circle cx="5" cy="5" r="1" />
+            <circle cx="10" cy="5" r="1" />
+            <circle cx="15" cy="5" r="1" />
+            <circle cx="5" cy="10" r="1" />
+            <circle cx="10" cy="10" r="1" />
+            <circle cx="15" cy="10" r="1" />
+            <circle cx="5" cy="15" r="1" />
+            <circle cx="10" cy="15" r="1" />
+            <circle cx="15" cy="15" r="1" />
+        </svg>
+    </div>
     <div class="record-info">
         @if($this->isMultiProject())
         <span class="record-subtitle">
             {{ $record['project']->name }}
         </span>
         @endif
-        <a href="{{ route('filament.resources.tickets.view', $record['id']) }}" target="_blank" class="record-title">
+        <div class="record-title">
             <span class="code">{{ $record['code'] }}</span>
             <span class="title">{{ $record['title'] }}</span>
-        </a>
+        </div>
     </div>
     @if($record['due_date'])
     <div class="record-due-date" style="margin: 0 0;">

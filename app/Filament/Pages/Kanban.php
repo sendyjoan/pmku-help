@@ -30,7 +30,9 @@ class Kanban extends Page implements HasForms
 
     protected $listeners = [
         'recordUpdated',
-        'closeTicketDialog'
+        'closeTicketDialog',
+        'openTicketModal' => 'handleTicketModal',
+        'closeTicketModal' => 'closeTicketModal'
     ];
 
     public function mount(Project $project)
@@ -156,6 +158,18 @@ class Kanban extends Page implements HasForms
     protected function getFormSchema(): array
     {
         return $this->formSchema();
+    }
+    public function handleTicketModal($ticketId)
+    {
+        // Emit event ke modal component
+        $this->emit('openTicketModalComponent', $ticketId);
+    }
+
+    // Method untuk close modal
+    public function closeTicketModal()
+    {
+        // Emit event ke modal component
+        $this->emit('closeTicketModalComponent');
     }
 
 }
