@@ -209,7 +209,10 @@ return [
          * Spatie Permissions Provider...
          */
         Spatie\Permission\PermissionServiceProvider::class,
-
+        App\Providers\CloudinaryServiceProvider::class,
+        App\Providers\FilamentServiceProvider::class,
+        App\Providers\CustomAvatarServiceProvider::class,
+        App\Providers\FixAvatarServiceProvider::class,
     ],
 
     /*

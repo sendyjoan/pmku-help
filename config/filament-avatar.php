@@ -10,7 +10,7 @@ return [
     | This value is the provider to use when generating the user's avatar url
     |
     */
-    'default_provider' => 'ui-avatar',
+    'default_provider' => 'gravatar',
 
     /*
     |--------------------------------------------------------------------------

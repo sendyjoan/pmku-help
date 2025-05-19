@@ -19,6 +19,9 @@ use Laravel\Sanctum\HasApiTokens;
 use ProtoneMedia\LaravelVerifyNewEmail\MustVerifyNewEmail;
 use Ramsey\Uuid\Uuid;
 use Spatie\Permission\Traits\HasRoles;
+use Cloudinary\Cloudinary;
+use Illuminate\Support\Facades\Storage;
+use Cloudinary\Api\Upload\UploadApi;
 
 class User extends Authenticatable implements MustVerifyEmail, FilamentUser
 {
@@ -39,6 +42,8 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         'type',
         'oidc_username',
         'email_verified_at',
+        'avatar_url',
+        'avatar_cloudinary_public_id',
     ];
 
     /**
@@ -176,5 +181,37 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
             'username.min' => 'Username must be at least 3 characters.',
             'username.max' => 'Username cannot exceed 30 characters.'
         ];
+    }
+    public function getFilamentAvatarUrl(): ?string
+    {
+        return $this->avatar_url ?: null;
+    }
+    public function avatarUrl(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                if (!empty($this->avatar_url)) {
+                    return $this->avatar_url;
+                }
+
+                // Default avatar fallback using first letter of name
+                return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&background=random&color=ffffff';
+            }
+        );
+    }
+    // Method to get initials for avatar display
+    public function getInitials(): string
+    {
+        $words = explode(' ', $this->name);
+        $initials = '';
+
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $initials .= mb_substr($word, 0, 1);
+                if (strlen($initials) >= 2) break;
+            }
+        }
+
+        return mb_strtoupper($initials);
     }
 }

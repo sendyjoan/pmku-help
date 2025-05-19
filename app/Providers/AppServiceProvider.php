@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Blade;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -91,6 +92,12 @@ class AppServiceProvider extends ServiceProvider
         if (env('APP_FORCE_HTTPS') ?? false) {
             URL::forceScheme('https');
         }
+        Blade::component('user-avatar', \App\View\Components\UserAvatar::class);
+
+        // Override Filament config for user avatar (for Filament v2)
+        config(['filament.user.avatar' => function ($user) {
+            return $user->avatar_url ?: null;
+        }]);
     }
 
     private function configureApp(): void

@@ -277,7 +277,7 @@ return [
     |
     */
 
-    'default_avatar_provider' => \Devaslanphp\FilamentAvatar\Core\FilamentUserAvatarProvider::class,
+    'default_avatar_provider' => \App\Providers\CustomFilamentUserAvatarProvider::class,
 
     /*
     |--------------------------------------------------------------------------

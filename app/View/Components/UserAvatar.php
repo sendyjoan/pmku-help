@@ -2,22 +2,23 @@
 
 namespace App\View\Components;
 
-use App\Models\User;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\View\Component;
+use App\Models\User;
 
 class UserAvatar extends Component
 {
-    public Authenticatable|User $user;
+    public $user;
+    public $class;
 
     /**
      * Create a new component instance.
      *
      * @return void
      */
-    public function __construct(Authenticatable|User $user)
+    public function __construct(User $user = null, $class = '')
     {
         $this->user = $user;
+        $this->class = $class;
     }
 
     /**

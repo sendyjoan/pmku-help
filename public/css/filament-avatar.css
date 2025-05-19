@@ -1,0 +1,61 @@
+/* CSS Untuk Avatar Filament */
+.fi-avatar {
+    overflow: hidden;
+    position: relative;
+}
+
+/* Memastikan avatar memiliki ukuran yang benar */
+.fi-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* Membuat initials avatar lebih baik */
+.filament-user-avatar,
+.fi-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+/* Avatar khusus */
+.filament-user-avatar[src^="http"],
+.fi-avatar img[src^="http"] {
+    object-fit: cover;
+    background-color: transparent;
+}
+
+/* Override untuk panel Filament */
+.fi-topbar .fi-avatar {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Override untuk menu avatar */
+.fi-user-menu .fi-avatar {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Header pengguna */
+.filament-header-user-menu-trigger img {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    object-fit: cover;
+}
+
+/* User icon dengan avatar */
+.fi-user-avatar img {
+    border-radius: 9999px;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}

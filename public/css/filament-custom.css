@@ -1,0 +1,48 @@
+/*
+Custom CSS untuk Filament Avatar
+File ini harus disimpan di public/css/filament-custom.css
+*/
+
+/*
+ * Styling untuk avatar Filament menggunakan avatar_url dari user
+ * dengan fallback ke avatar default
+ */
+
+/* Ganti avatar default di menu user */
+.fi-avatar {
+    position: relative;
+}
+
+.fi-avatar:empty::before {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: var(--avatar-url, url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffffff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>'));
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
+}
+
+/* Additional avatar styling for user with custom avatar */
+.has-avatar .fi-avatar::before {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: var(--avatar-url);
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
+}
+
+/* Hide the automatically generated avatar content if we provide our own */
+.has-avatar .fi-avatar > * {
+    opacity: 0;
+}

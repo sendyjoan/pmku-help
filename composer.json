@@ -7,6 +7,8 @@
     "require": {
         "php": "^8.0.2",
         "ext-iconv": "*",
+        "cloudinary-labs/cloudinary-laravel": "^2.1",
+        "cloudinary/cloudinary_php": "^2.10",
         "devaslanphp/filament-avatar": "^1.0",
         "doctrine/dbal": "^3.5",
         "dutchcodingcompany/filament-socialite": "^0.2.2",
