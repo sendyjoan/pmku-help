@@ -158,6 +158,23 @@
                         @endif
                 </div>
             </div>
+            @if($record->isCompleted && $record->completedAt)
+            <div class="flex flex-col w-full gap-1 pt-3">
+                <span class="text-sm font-medium text-gray-500">
+                    {{ __('Completed Date') }}
+                </span>
+                <div class="w-full">
+                    <span
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                        <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span>
+                        {{ $record->completedAt->format('M d, Y \a\t g:i A') }}
+                    </span>
+                    <div class="mt-1 text-xs text-gray-500">
+                        ({{ $record->completedAt->diffForHumans() }})
+                    </div>
+                </div>
+            </div>
+            @endif
 
             <div class="flex flex-col w-full gap-1 pt-3">
                 <span class="text-sm font-medium text-gray-500">
@@ -344,22 +361,36 @@
                 @if($record->activities->count())
                 @foreach($record->activities->sortByDesc('created_at') as $activity)
                 <div class="w-full flex flex-col gap-2
-                                 @if(!$loop->last) pb-5 mb-5 border-b border-gray-200 @endif">
+                 @if(!$loop->last) pb-5 mb-5 border-b border-gray-200 @endif">
                     <span class="flex items-center gap-1 text-sm text-gray-500">
                         <span class="flex items-center gap-1 font-medium">
                             <x-user-avatar :user="$activity->user" />
                             {{ $activity->user->name }}
                         </span>
-                        <span class="px-2 text-gray-400">|</span>
-                        {{ $activity->created_at->format('Y-m-d g:i A') }}
-                        ({{ $activity->created_at->diffForHumans() }})
+                        <span class="px-2 text-gray-400">•</span>
+                        {{ $activity->formattedDate }}
+                        <span class="text-xs text-gray-400">
+                            ({{ $activity->created_at->diffForHumans() }})
+                        </span>
                     </span>
-                    <div class="flex items-center w-full gap-10">
+                    <div class="flex items-center w-full gap-3">
                         <span class="text-gray-400">{{ $activity->oldStatus->name }}</span>
-                        <x-heroicon-o-arrow-right class="w-6 h-6" />
-                        <span style="color: {{ $activity->newStatus->color }}">
+                        <x-heroicon-o-arrow-right class="w-4 h-4 text-gray-400" />
+                        <span style="color: {{ $activity->newStatus->color }}" class="font-medium">
                             {{ $activity->newStatus->name }}
                         </span>
+
+                        @if($activity->newStatus->name === 'Completed')
+                        <span
+                            class="inline-flex items-center px-2 py-1 ml-2 text-xs font-medium text-green-800 bg-green-100 rounded-full">
+                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                    clip-rule="evenodd"></path>
+                            </svg>
+                            Completed
+                        </span>
+                        @endif
                     </div>
                 </div>
                 @endforeach

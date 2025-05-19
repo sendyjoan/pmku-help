@@ -253,4 +253,48 @@ class Ticket extends Model implements HasMedia
         return $this->belongsToMany(User::class, 'ticket_cc', 'ticket_id', 'user_id')
                     ->withTimestamps();
     }
+    public function completedAt(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                // Cari activity terakhir yang mengubah status ke 'completed'
+                // Anda perlu sesuaikan nama status completed di sistem Anda
+                $completedActivity = $this->activities()
+                    ->whereHas('newStatus', function($query) {
+                        $query->where('name', 'Completed'); // Sesuaikan dengan nama status completed di sistem Anda
+                    })
+                    ->latest()
+                    ->first();
+
+                return $completedActivity ? $completedActivity->created_at : null;
+            }
+        );
+    }
+
+    public function isCompleted(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                // Sesuaikan dengan nama status completed di sistem Anda
+                return $this->status->name === 'Completed';
+            }
+        );
+    }
+    public function scopeCompletedBetween($query, $startDate, $endDate)
+    {
+        return $query->whereHas('activities', function($q) use ($startDate, $endDate) {
+            $q->whereHas('newStatus', function($sq) {
+                $sq->where('name', 'Completed');
+            })
+            ->whereBetween('created_at', [$startDate, $endDate]);
+        });
+    }
+
+    public function scopeCompletedToday($query)
+    {
+        return $query->completedBetween(
+            now()->startOfDay(),
+            now()->endOfDay()
+        );
+    }
 }

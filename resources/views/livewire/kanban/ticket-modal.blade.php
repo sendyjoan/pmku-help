@@ -274,6 +274,17 @@
                                         <span class="font-medium">{{ $ticket->priority->name }}</span>
                                     </div>
                                 </div>
+                                @if($ticket->isCompleted && $ticket->completedAt)
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">Completed:</span>
+                                    <div class="text-right">
+                                        <span class="font-medium text-green-600">{{ $ticket->completedAt->format('M j,
+                                            Y') }}</span>
+                                        <div class="text-xs text-gray-500">{{ $ticket->completedAt->format('g:i A') }}
+                                        </div>
+                                    </div>
+                                </div>
+                                @endif
                             </div>
                         </div>
 
