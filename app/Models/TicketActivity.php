@@ -39,7 +39,11 @@ class TicketActivity extends Model
     {
         return new Attribute(
             get: function () {
-                $description = "changed status from {$this->oldStatus->name} to {$this->newStatus->name}";
+                // Safe null checks
+                $oldStatusName = $this->oldStatus?->name ?? 'Unknown Status';
+                $newStatusName = $this->newStatus?->name ?? 'Unknown Status';
+
+                $description = "changed status from {$oldStatusName} to {$newStatusName}";
 
                 // Add auto-complete indicator for system actions
                 if (!$this->user_id) {
@@ -60,21 +64,18 @@ class TicketActivity extends Model
         );
     }
 
-    public function isSystemAction(): Attribute
+    // Scope untuk filter activities yang valid
+    public function scopeValidStatuses($query)
     {
-        return new Attribute(
-            get: function () {
-                return $this->user_id === null;
-            }
-        );
+        return $query->whereNotNull('old_status_id')
+                    ->whereNotNull('new_status_id')
+                    ->whereHas('oldStatus')
+                    ->whereHas('newStatus');
     }
 
-    public function actorName(): Attribute
+    // Scope untuk activities dengan user yang valid
+    public function scopeWithValidUser($query)
     {
-        return new Attribute(
-            get: function () {
-                return $this->user ? $this->user->name : 'System';
-            }
-        );
+        return $query->whereHas('user');
     }
 }

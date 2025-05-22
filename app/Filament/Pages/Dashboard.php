@@ -2,9 +2,8 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Widgets\EnhancedActivityFeed;
 use App\Filament\Widgets\FavoriteProjects;
-use App\Filament\Widgets\LatestActivities;
-use App\Filament\Widgets\LatestComments;
 use App\Filament\Widgets\LatestProjects;
 use App\Filament\Widgets\LatestTickets;
 use App\Filament\Widgets\TicketsOverview;
@@ -24,8 +23,7 @@ class Dashboard extends BasePage
     {
         return [
             FavoriteProjects::class,
-            LatestActivities::class,
-            LatestComments::class,
+            EnhancedActivityFeed::class,
             LatestProjects::class,
             LatestTickets::class,
             TicketsOverview::class,
