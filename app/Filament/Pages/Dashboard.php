@@ -11,6 +11,7 @@ use App\Filament\Widgets\TicketsByPriority;
 use App\Filament\Widgets\TicketsByType;
 use App\Filament\Widgets\TicketTimeLogged;
 use App\Filament\Widgets\UserTimeLogged;
+use App\Filament\Widgets\TimeLoggedByUsers; // Import widget baru
 use Filament\Pages\Dashboard as BasePage;
 
 class Dashboard extends BasePage
@@ -32,8 +33,7 @@ class Dashboard extends BasePage
             LatestTickets::class,
             TicketsByPriority::class,
             TicketsByType::class,
-            TicketTimeLogged::class,
-            UserTimeLogged::class
+            TimeLoggedByUsers::class, // Tambahkan widget baru di sini
         ];
     }
 }
