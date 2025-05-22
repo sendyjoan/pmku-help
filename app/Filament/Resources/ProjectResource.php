@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\ProjectFavorite;
 use App\Models\ProjectStatus;
 use App\Models\Ticket;
+use App\Models\TicketStatus;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Forms;
@@ -47,6 +48,15 @@ class ProjectResource extends Resource
     {
         return $form
             ->schema([
+                // Debug form load
+                Forms\Components\Placeholder::make('form_debug')
+                    ->label('')
+                    ->content(new HtmlString('
+                        <div style="background: yellow; padding: 10px; margin: 10px 0;">
+                            <strong>FORM DEBUG:</strong> Auto Complete form section should appear below
+                        </div>
+                    ')),
+
                 Forms\Components\Card::make()
                     ->schema([
                         Forms\Components\Grid::make()
@@ -128,6 +138,7 @@ class ProjectResource extends Resource
                                         __('If custom type selected, you need to configure project specific statuses')
                                     )
                                     ->searchable()
+                                    ->reactive()
                                     ->options([
                                         'default' => __('Default'),
                                         'custom' => __('Custom configuration')
@@ -137,6 +148,209 @@ class ProjectResource extends Resource
                                     ->required(),
                             ]),
                     ]),
+
+                // Auto Complete Settings Card
+                Forms\Components\Card::make()
+                    ->schema([
+                        Forms\Components\Placeholder::make('auto_complete_heading')
+                            ->label('')
+                            ->content(new HtmlString('
+                                <div class="mb-4">
+                                    <h3 class="text-lg font-medium text-gray-900">' . __('Auto Complete Settings') . '</h3>
+                                    <p class="text-sm text-gray-600">' . __('Configure automatic ticket completion when cards stay in review status too long') . '</p>
+                                </div>
+                            ')),
+
+                        Forms\Components\Grid::make()
+                            ->columns(2)
+                            ->schema([
+                                Forms\Components\Checkbox::make('auto_complete_enabled')
+                                    ->label(__('Enable Auto Complete'))
+                                    ->helperText(__('Automatically move tickets to completed status when they stay too long in review'))
+                                    ->columnSpan(2),
+
+                                Forms\Components\TextInput::make('auto_complete_days')
+                                    ->label(__('Days to wait'))
+                                    ->helperText(__('Number of days a ticket can stay in the status before auto-completion'))
+                                    ->numeric()
+                                    ->default(3)
+                                    ->minValue(1)
+                                    ->maxValue(30)
+                                    ->columnSpan(1),
+
+                                Forms\Components\TextInput::make('auto_complete_from_status')
+                                    ->label(__('Monitor Status'))
+                                    ->helperText(__('The status to monitor (e.g., "In Review")'))
+                                    ->placeholder('e.g., In Review')
+                                    ->columnSpan(1),
+
+                                Forms\Components\TextInput::make('auto_complete_to_status')
+                                    ->label(__('Target Status'))
+                                    ->helperText(__('The status to move tickets to (e.g., "Completed")'))
+                                    ->placeholder('e.g., Completed')
+                                    ->columnSpan(1),
+                            ]),
+
+                        Forms\Components\Placeholder::make('auto_complete_info')
+                            ->label('')
+                            ->content(new HtmlString('
+                                <div class="p-4 mt-4 border border-blue-200 rounded-lg bg-blue-50">
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0">
+                                            <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <h3 class="text-sm font-medium text-blue-800">
+                                                ' . __('How Auto Complete Works') . '
+                                            </h3>
+                                            <div class="mt-2 text-sm text-blue-700">
+                                                <p>
+                                                    ' . __('When enabled, this feature will automatically move tickets from the "Monitor Status" to the "Target Status" if they remain unchanged for the specified number of days.') . '
+                                                </p>
+                                                <p class="mt-1">
+                                                    ' . __('This feature runs daily via scheduled command and helps prevent tickets from getting stuck in review.') . '
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ')),
+
+                        // DEBUG SCRIPT
+                        Forms\Components\Placeholder::make('debug_auto_complete')
+                            ->label('')
+                            ->content(new HtmlString('
+                                <script>
+                                    console.log("🔍 AUTO COMPLETE FIELD DEBUG SCRIPT LOADED");
+
+                                    document.addEventListener("DOMContentLoaded", function() {
+                                        console.log("🔍 DOM Loaded - Checking Auto Complete Fields...");
+
+                                        setTimeout(function() {
+                                            // Debug all auto complete fields
+                                            const autoCompleteFields = [
+                                                "auto_complete_enabled",
+                                                "auto_complete_days",
+                                                "auto_complete_from_status",
+                                                "auto_complete_to_status"
+                                            ];
+
+                                            console.log("🔍 Looking for auto complete fields...");
+
+                                            autoCompleteFields.forEach(function(fieldName) {
+                                                const field = document.querySelector(`[name="${fieldName}"]`);
+                                                console.log(`🔍 Field "${fieldName}":`, {
+                                                    found: !!field,
+                                                    element: field,
+                                                    type: field?.type,
+                                                    disabled: field?.disabled,
+                                                    readonly: field?.readOnly,
+                                                    value: field?.value,
+                                                    checked: field?.checked,
+                                                    style_display: field ? getComputedStyle(field).display : "not found",
+                                                    style_visibility: field ? getComputedStyle(field).visibility : "not found",
+                                                    parent_disabled: field ? field.closest("[disabled]") : "not found"
+                                                });
+
+                                                if (field) {
+                                                    // Test click handler
+                                                    field.addEventListener("click", function() {
+                                                        console.log(`✅ Field "${fieldName}" was clicked!`);
+                                                    });
+
+                                                    field.addEventListener("focus", function() {
+                                                        console.log(`✅ Field "${fieldName}" received focus!`);
+                                                    });
+
+                                                    field.addEventListener("change", function() {
+                                                        console.log(`✅ Field "${fieldName}" value changed to:`, this.value || this.checked);
+                                                    });
+                                                }
+                                            });
+
+                                            // Check all form inputs
+                                            const allInputs = document.querySelectorAll("form input, form select, form textarea");
+                                            console.log(`🔍 Total form inputs found: ${allInputs.length}`);
+
+                                            // Test if form is actually functional
+                                            console.log("🔍 Testing form functionality...");
+                                            const testInput = document.querySelector(`[name="name"]`);
+                                            if (testInput) {
+                                                console.log("✅ Main form fields are accessible");
+                                                console.log("✅ Project name field:", {
+                                                    value: testInput.value,
+                                                    disabled: testInput.disabled,
+                                                    readonly: testInput.readOnly
+                                                });
+                                            }
+
+                                            // Check if auto complete section is visible
+                                            const autoCompleteSection = document.querySelector("h3:contains(\\"Auto Complete Settings\\")");
+                                            console.log("🔍 Auto Complete section visible:", !!autoCompleteSection);
+
+                                        }, 2000);
+                                    });
+
+                                    // Monitor every 10 seconds
+                                    setInterval(function() {
+                                        const checkbox = document.querySelector(`[name="auto_complete_enabled"]`);
+                                        console.log("⏰ Auto complete checkbox status:", {
+                                            found: !!checkbox,
+                                            checked: checkbox?.checked,
+                                            disabled: checkbox?.disabled
+                                        });
+                                    }, 10000);
+                                </script>
+                            ')),
+                    ]),
+                Forms\Components\Placeholder::make('debug_script')
+                            ->label('')
+                            ->content(new HtmlString('
+                                <script>
+                                    console.log("Auto Complete Debug Script Loaded");
+
+                                    // Debug toggle changes
+                                    document.addEventListener("DOMContentLoaded", function() {
+                                        console.log("DOM Loaded - looking for toggle");
+
+                                        // Find the toggle input
+                                        const toggleInput = document.querySelector(\'input[name="auto_complete_enabled"]\');
+                                        if (toggleInput) {
+                                            console.log("Toggle found:", toggleInput);
+                                            console.log("Initial value:", toggleInput.checked);
+
+                                            toggleInput.addEventListener("change", function() {
+                                                console.log("Toggle changed to:", this.checked);
+                                                console.log("Current form state:", this.form);
+
+                                                // Force refresh form state
+                                                window.dispatchEvent(new Event("resize"));
+                                            });
+                                        } else {
+                                            console.error("Toggle input not found!");
+                                        }
+
+                                        // Debug all form inputs
+                                        const allInputs = document.querySelectorAll(\'form input, form select, form textarea\');
+                                        console.log("All form inputs found:", allInputs.length);
+                                        allInputs.forEach((input, index) => {
+                                            if (input.name) {
+                                                console.log(`Input ${index}:`, input.name, "=", input.value);
+                                            }
+                                        });
+                                    });
+
+                                    // Monitor form changes
+                                    setInterval(function() {
+                                        const toggle = document.querySelector(\'input[name="auto_complete_enabled"]\');
+                                        if (toggle) {
+                                            console.log("Toggle status check:", toggle.checked);
+                                        }
+                                    }, 5000);
+                                </script>
+                            ')),
             ]);
     }
 
@@ -187,6 +401,14 @@ class ProjectResource extends Resource
                         'warning' => 'scrum',
                     ]),
 
+                Tables\Columns\IconColumn::make('auto_complete_enabled')
+                    ->label(__('Auto Complete'))
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('gray'),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label(__('Created at'))
                     ->dateTime()
@@ -203,6 +425,12 @@ class ProjectResource extends Resource
                     ->label(__('Status'))
                     ->multiple()
                     ->options(fn() => ProjectStatus::all()->pluck('name', 'id')->toArray()),
+
+                Tables\Filters\TernaryFilter::make('auto_complete_enabled')
+                    ->label(__('Auto Complete'))
+                    ->placeholder(__('All projects'))
+                    ->trueLabel(__('Auto Complete Enabled'))
+                    ->falseLabel(__('Auto Complete Disabled')),
             ])
             ->actions([
 
@@ -256,6 +484,26 @@ class ProjectResource extends Resource
                                 return route('filament.pages.kanban/{project}', ['project' => $record->id]);
                             }
                         }),
+
+                    Tables\Actions\Action::make('autoCompleteStatus')
+                        ->label(__('Auto Complete Status'))
+                        ->icon('heroicon-o-clock')
+                        ->color('warning')
+                        ->visible(fn($record) => $record->auto_complete_enabled)
+                        ->modalContent(function ($record) {
+                            $eligibleTickets = $record->getTicketsForAutoCompletion();
+                            $fromStatus = $record->getAutoCompleteFromStatus();
+                            $toStatus = $record->getAutoCompleteToStatus();
+
+                            return view('components.auto-complete-status-modal', [
+                                'project' => $record,
+                                'eligibleTickets' => $eligibleTickets,
+                                'fromStatus' => $fromStatus,
+                                'toStatus' => $toStatus,
+                            ]);
+                        })
+                        ->modalHeading(__('Auto Complete Status'))
+                        ->modalWidth('2xl'),
                 ])->color('secondary'),
             ])
             ->bulkActions([

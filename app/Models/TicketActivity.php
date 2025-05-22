@@ -34,11 +34,19 @@ class TicketActivity extends Model
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
+
     public function description(): Attribute
     {
         return new Attribute(
             get: function () {
-                return "changed status from {$this->oldStatus->name} to {$this->newStatus->name}";
+                $description = "changed status from {$this->oldStatus->name} to {$this->newStatus->name}";
+
+                // Add auto-complete indicator for system actions
+                if (!$this->user_id) {
+                    $description .= " (auto-completed by system)";
+                }
+
+                return $description;
             }
         );
     }
@@ -48,6 +56,24 @@ class TicketActivity extends Model
         return new Attribute(
             get: function () {
                 return $this->created_at->format('M d, Y \a\t g:i A');
+            }
+        );
+    }
+
+    public function isSystemAction(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                return $this->user_id === null;
+            }
+        );
+    }
+
+    public function actorName(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                return $this->user ? $this->user->name : 'System';
             }
         );
     }
