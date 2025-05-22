@@ -28,6 +28,7 @@ class TimeLoggedByUsers extends BaseWidget
                 \DB::raw('(SELECT COALESCE(SUM(value), 0) FROM ticket_hours WHERE user_id = users.id) as total_hours_logged')
             ])
             ->havingRaw('total_tickets_count > 0 OR total_hours_logged > 0')
+            ->orderByDesc('total_tickets_count')
             ->orderByDesc('total_hours_logged');
     }
 
@@ -48,7 +49,7 @@ class TimeLoggedByUsers extends BaseWidget
                                      class="w-8 h-8 rounded-full object-cover">
                                 <div>
                                     <div class="font-medium text-gray-900">' . e($record->name) . '</div>
-                                    <div class="text-sm text-gray-500">' . $totalTickets . ' tickets total</div>
+                                    <div class="text-sm text-gray-500">' . $totalTickets . ' assigned tickets</div>
                                 </div>
                             </div>
                         ');
