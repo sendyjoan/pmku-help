@@ -17,10 +17,8 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\HtmlString;
 
-
 trait KanbanScrumHelper
 {
-
     public bool $sortable = true;
 
     public Project|null $project = null;
@@ -166,6 +164,7 @@ trait KanbanScrumHelper
             Filament::notify('success', __('Ticket updated'));
         }
     }
+
     public function createTicketWithStatusDirect(int $statusId): void
     {
         try {
@@ -180,6 +179,10 @@ trait KanbanScrumHelper
             $defaultType = TicketType::where('is_default', true)->first();
             $defaultPriority = TicketPriority::where('is_default', true)->first();
 
+            // Auto set estimation dan due date berdasarkan default priority
+            $estimationHours = $this->getEstimationByPriority($defaultPriority);
+            $dueDate = $this->calculateDueDate($estimationHours);
+
             // Create new ticket with specific status
             $ticket = Ticket::create([
                 'name' => 'New Ticket',
@@ -189,6 +192,8 @@ trait KanbanScrumHelper
                 'status_id' => $statusId,
                 'type_id' => $defaultType?->id,
                 'priority_id' => $defaultPriority?->id,
+                'estimation' => $estimationHours,
+                'due_date' => $dueDate,
             ]);
 
             // Show success notification
@@ -203,6 +208,32 @@ trait KanbanScrumHelper
             // Show error notification
             Filament::notify('danger', __('Failed to create ticket: ') . $e->getMessage());
         }
+    }
+
+    private function getEstimationByPriority(?TicketPriority $priority): int
+    {
+        if (!$priority) return 3;
+
+        // Mapping estimation hours berdasarkan priority name
+        $estimationMapping = [
+            'Low' => 2,
+            'Normal' => 3,
+            'High' => 5,
+            'Critical' => 6,
+            'Blocker' => 7,
+        ];
+
+        return $estimationMapping[$priority->name] ?? 3;
+    }
+
+    private function calculateDueDate(int $hours): string
+    {
+        // Asumsi 8 jam kerja per hari
+        $workingDays = ceil($hours / 8);
+        if ($workingDays < 1) $workingDays = 1; // minimal 1 hari
+
+        $dueDate = now()->addWeekdays($workingDays);
+        return $dueDate->format('Y-m-d');
     }
 
     public function isMultiProject(): bool
@@ -359,5 +390,4 @@ trait KanbanScrumHelper
             return null;
         }
     }
-
 }

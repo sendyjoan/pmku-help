@@ -169,6 +169,32 @@ class TicketResource extends Resource
                                         Forms\Components\Select::make('priority_id')
                                             ->label(__('Ticket priority'))
                                             ->searchable()
+                                            ->reactive()
+                                            ->afterStateUpdated(function ($state, $set, $get) {
+                                                // Auto set estimation dan due date berdasarkan priority
+                                                $priority = TicketPriority::find($state);
+                                                if ($priority) {
+                                                    // Mapping estimation hours berdasarkan priority name
+                                                    $estimationMapping = [
+                                                        'Low' => 2,
+                                                        'Normal' => 3,
+                                                        'High' => 5,
+                                                        'Critical' => 6,
+                                                        'Blocker' => 7,
+                                                    ];
+
+                                                    $estimationHours = $estimationMapping[$priority->name] ?? 3;
+                                                    $set('estimation', $estimationHours);
+
+                                                    // Auto set due date berdasarkan estimation
+                                                    // Asumsi 8 jam kerja per hari
+                                                    $workingDays = ceil($estimationHours / 8);
+                                                    if ($workingDays < 1) $workingDays = 1; // minimal 1 hari
+
+                                                    $dueDate = now()->addWeekdays($workingDays);
+                                                    $set('due_date', $dueDate->format('Y-m-d'));
+                                                }
+                                            })
                                             ->options(fn() => TicketPriority::all()->pluck('name', 'id')->toArray())
                                             ->default(fn() => TicketPriority::where('is_default', true)->first()?->id)
                                             ->required(),
@@ -192,12 +218,28 @@ class TicketResource extends Resource
                             ->columns(12)
                             ->schema([
                                 Forms\Components\TextInput::make('estimation')
-                                    ->label(__('Estimation time'))
+                                    ->label(__('Estimation time (hours)'))
                                     ->numeric()
+                                    ->suffix('hours')
+                                    ->helperText(__('Estimated time to complete this ticket in hours'))
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, $set, $get) {
+                                        // Auto update due date ketika estimation berubah
+                                        if ($state && is_numeric($state)) {
+                                            $hours = (float) $state;
+                                            // Asumsi 8 jam kerja per hari
+                                            $workingDays = ceil($hours / 8);
+                                            if ($workingDays < 1) $workingDays = 1; // minimal 1 hari
+
+                                            $dueDate = now()->addWeekdays($workingDays);
+                                            $set('due_date', $dueDate->format('Y-m-d'));
+                                        }
+                                    })
                                     ->columnSpan(4),
 
                                 Forms\Components\DatePicker::make('due_date')
                                     ->label(__('Due Date'))
+                                    ->helperText(__('Automatically calculated based on estimation time'))
                                     ->columnSpan(4),
                             ]),
 
@@ -246,6 +288,7 @@ class TicketResource extends Resource
             ]);
     }
 
+    // Sisanya tetap sama seperti kode asli...
     public static function tableColumns(bool $withProject = true): array
     {
         $columns = [];
@@ -304,6 +347,11 @@ class TicketResource extends Resource
                         '))
                 ->sortable()
                 ->searchable(),
+
+            Tables\Columns\TextColumn::make('estimation')
+                ->label(__('Estimation'))
+                ->formatStateUsing(fn($state) => $state ? $state . ' hours' : '-')
+                ->sortable(),
 
             Tables\Columns\TextColumn::make('due_date')
                 ->label(__('Due Date'))
