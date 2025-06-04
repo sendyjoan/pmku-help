@@ -172,7 +172,7 @@ return [
     |
     */
 
-    'dark_mode' => env('FILAMENT_DARK_MODE', false),
+    'dark_mode' => env('FILAMENT_DARK_MODE', true),
 
     /*
     |--------------------------------------------------------------------------

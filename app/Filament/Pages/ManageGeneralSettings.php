@@ -48,12 +48,21 @@ class ManageGeneralSettings extends SettingsPage
                 ->schema([
                     Grid::make(3)
                         ->schema([
-                            FileUpload::make('site_logo')
-                                ->label(__('Site logo'))
-                                ->helperText(__('This is the platform logo (e.g. Used in site favicon)'))
-                                ->image()
+                            Grid::make(1)
                                 ->columnSpan(1)
-                                ->maxSize(config('system.max_file_size')),
+                                ->schema([
+                                    FileUpload::make('site_logo')
+                                        ->label(__('Site logo (Light Mode)'))
+                                        ->helperText(__('Logo for light theme and general use'))
+                                        ->image()
+                                        ->maxSize(config('system.max_file_size')),
+
+                                    FileUpload::make('site_logo_dark')
+                                        ->label(__('Site logo (Dark Mode)'))
+                                        ->helperText(__('Logo for dark theme (optional - will use light logo if not set)'))
+                                        ->image()
+                                        ->maxSize(config('system.max_file_size')),
+                                ]),
 
                             Grid::make(1)
                                 ->columnSpan(2)
@@ -93,6 +102,75 @@ class ManageGeneralSettings extends SettingsPage
                                         ->options(Role::all()->pluck('name', 'id')->toArray()),
                                 ]),
                         ]),
+                ]),
+
+            // Preview Card
+            Card::make()
+                ->schema([
+                    \Filament\Forms\Components\Placeholder::make('preview_title')
+                        ->label('')
+                        ->content(new \Illuminate\Support\HtmlString('
+                            <div class="mb-4">
+                                <h3 class="text-lg font-medium text-gray-900">' . __('Logo Preview') . '</h3>
+                                <p class="text-sm text-gray-600">' . __('Preview how your logos will appear in light and dark modes') . '</p>
+                            </div>
+                        ')),
+
+                    Grid::make(2)
+                        ->schema([
+                            \Filament\Forms\Components\Placeholder::make('logo_preview_light')
+                                ->label(__('Light Mode Preview'))
+                                ->content(function ($get) {
+                                    $logo = $get('site_logo');
+                                    if ($logo) {
+                                        $url = is_string($logo) ? asset('storage/' . $logo) : $logo->temporaryUrl();
+                                        return new \Illuminate\Support\HtmlString('
+                                            <div class="flex items-center justify-center p-4 bg-white border border-gray-200 rounded-lg dark:bg-gray-100 dark:border-gray-300">
+                                                <img src="' . $url . '" alt="Light Logo Preview" class="w-auto max-h-16">
+                                            </div>
+                                        ');
+                                    }
+                                    return new \Illuminate\Support\HtmlString('
+                                        <div class="flex items-center justify-center p-4 text-gray-500 bg-white border border-gray-200 rounded-lg dark:bg-gray-100 dark:border-gray-300 dark:text-gray-600">
+                                            No light logo uploaded
+                                        </div>
+                                    ');
+                                }),
+
+                            \Filament\Forms\Components\Placeholder::make('logo_preview_dark')
+                                ->label(__('Dark Mode Preview'))
+                                ->content(function ($get) {
+                                    $darkLogo = $get('site_logo_dark');
+                                    $lightLogo = $get('site_logo');
+
+                                    if ($darkLogo) {
+                                        $url = is_string($darkLogo) ? asset('storage/' . $darkLogo) : $darkLogo->temporaryUrl();
+                                        return new \Illuminate\Support\HtmlString('
+                                            <div class="flex items-center justify-center p-4 bg-gray-800 border border-gray-600 rounded-lg dark:bg-gray-900 dark:border-gray-700">
+                                                <img src="' . $url . '" alt="Dark Logo Preview" class="w-auto max-h-16">
+                                            </div>
+                                        ');
+                                    } elseif ($lightLogo) {
+                                        $url = is_string($lightLogo) ? asset('storage/' . $lightLogo) : $lightLogo->temporaryUrl();
+                                        return new \Illuminate\Support\HtmlString('
+                                            <div class="relative flex items-center justify-center p-4 bg-gray-800 border border-gray-600 rounded-lg dark:bg-gray-900 dark:border-gray-700">
+                                                <img src="' . $url . '" alt="Light Logo (Inverted)" class="w-auto max-h-16 filter brightness-0 invert">
+                                                <div class="absolute px-2 py-1 text-xs text-yellow-900 bg-yellow-500 rounded bottom-2 right-2">
+                                                    Auto-inverted
+                                                </div>
+                                            </div>
+                                        ');
+                                    }
+                                    return new \Illuminate\Support\HtmlString('
+                                        <div class="flex items-center justify-center p-4 text-gray-400 bg-gray-800 border border-gray-600 rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-gray-500">
+                                            <div class="text-center">
+                                                <div>No dark logo uploaded</div>
+                                                <small>Will use light logo with auto-invert</small>
+                                            </div>
+                                        </div>
+                                    ');
+                                }),
+                        ])
                 ]),
         ];
     }
