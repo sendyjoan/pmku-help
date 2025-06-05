@@ -154,11 +154,6 @@ class ViewTicket extends ViewRecord implements HasForms
         ];
     }
 
-    public function selectTab(string $tab): void
-    {
-        $this->tab = $tab;
-    }
-
     protected function getFormSchema(): array
     {
         return [
@@ -176,21 +171,44 @@ class ViewTicket extends ViewRecord implements HasForms
     public function submitComment(): void
     {
         $data = $this->form->getState();
+
         if ($this->selectedCommentId) {
-            TicketComment::where('id', $this->selectedCommentId)
-                ->update([
-                    'content' => $data['comment']
-                ]);
+            // Editing existing comment
+            $comment = TicketComment::find($this->selectedCommentId);
+
+            if (!$comment) {
+                $this->notify('danger', __('Comment not found'));
+                return;
+            }
+
+            if (!$this->canEditComment($comment)) {
+                $this->notify('danger', __('You do not have permission to edit this comment'));
+                return;
+            }
+
+            $comment->update([
+                'content' => $data['comment']
+            ]);
+
+            $this->notify('success', __('Comment updated successfully'));
         } else {
+            // Creating new comment
+            if (!$this->canCreateComment()) {
+                $this->notify('danger', __('You do not have permission to create comments'));
+                return;
+            }
+
             TicketComment::create([
                 'user_id' => auth()->user()->id,
                 'ticket_id' => $this->record->id,
                 'content' => $data['comment']
             ]);
+
+            $this->notify('success', __('Comment created successfully'));
         }
+
         $this->record->refresh();
         $this->cancelEditComment();
-        $this->notify('success', __('Comment saved'));
     }
 
     public function isAdministrator(): bool
@@ -203,16 +221,46 @@ class ViewTicket extends ViewRecord implements HasForms
                 ->count() != 0;
     }
 
+    /**
+     * Update editComment method with permission check
+     */
     public function editComment(int $commentId): void
     {
+        $comment = TicketComment::find($commentId);
+
+        if (!$comment) {
+            $this->notify('danger', __('Comment not found'));
+            return;
+        }
+
+        if (!$this->canEditComment($comment)) {
+            $this->notify('danger', __('You do not have permission to edit this comment'));
+            return;
+        }
+
         $this->form->fill([
-            'comment' => $this->record->comments->where('id', $commentId)->first()?->content
+            'comment' => $comment->content
         ]);
         $this->selectedCommentId = $commentId;
     }
 
+    /**
+     * Update deleteComment method with permission check
+     */
     public function deleteComment(int $commentId): void
     {
+        $comment = TicketComment::find($commentId);
+
+        if (!$comment) {
+            $this->notify('danger', __('Comment not found'));
+            return;
+        }
+
+        if (!$this->canDeleteComment($comment)) {
+            $this->notify('danger', __('You do not have permission to delete this comment'));
+            return;
+        }
+
         Notification::make()
             ->warning()
             ->title(__('Delete confirmation'))
@@ -232,11 +280,26 @@ class ViewTicket extends ViewRecord implements HasForms
             ->send();
     }
 
+    /**
+     * Update doDeleteComment method with permission check
+     */
     public function doDeleteComment(int $commentId): void
     {
-        TicketComment::where('id', $commentId)->delete();
+        $comment = TicketComment::find($commentId);
+
+        if (!$comment) {
+            $this->notify('danger', __('Comment not found'));
+            return;
+        }
+
+        if (!$this->canDeleteComment($comment)) {
+            $this->notify('danger', __('You do not have permission to delete this comment'));
+            return;
+        }
+
+        $comment->delete();
         $this->record->refresh();
-        $this->notify('success', __('Comment deleted'));
+        $this->notify('success', __('Comment deleted successfully'));
     }
 
     public function cancelEditComment(): void
@@ -419,5 +482,52 @@ class ViewTicket extends ViewRecord implements HasForms
             },
             $content
         );
+    }
+        /**
+     * Check if user can view comments tab
+     */
+    public function canViewComments(): bool
+    {
+        return auth()->user()->can('List comments');
+    }
+
+    /**
+     * Check if user can create comments
+     */
+    public function canCreateComment(): bool
+    {
+        return auth()->user()->can('Create comment');
+    }
+
+    /**
+     * Check if user can edit a specific comment
+     */
+    public function canEditComment(TicketComment $comment): bool
+    {
+        // User must have Update comment permission AND be the owner of the comment
+        return auth()->user()->can('Update comment') && $comment->user_id === auth()->user()->id;
+    }
+
+    /**
+     * Check if user can delete a specific comment
+     */
+    public function canDeleteComment(TicketComment $comment): bool
+    {
+        // User must have Delete comment permission AND be the owner of the comment
+        return auth()->user()->can('Delete comment') && $comment->user_id === auth()->user()->id;
+    }
+
+    /**
+     * Update the selectTab method to check permissions
+     */
+    public function selectTab(string $tab): void
+    {
+        // Check if user can access comments tab
+        if ($tab === 'comments' && !$this->canViewComments()) {
+            $this->notify('warning', __('You do not have permission to view comments'));
+            return;
+        }
+
+        $this->tab = $tab;
     }
 }
