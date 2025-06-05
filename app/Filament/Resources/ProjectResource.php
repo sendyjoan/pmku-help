@@ -222,7 +222,7 @@ class ProjectResource extends Resource
                     ->label(__('Cover image'))
                     ->formatStateUsing(fn($state) => new HtmlString('
                             <div style=\'background-image: url("' . $state . '")\'
-                                 class="w-8 h-8 bg-cover bg-center bg-no-repeat"></div>
+                                 class="w-8 h-8 bg-center bg-no-repeat bg-cover"></div>
                         ')),
 
                 Tables\Columns\TextColumn::make('name')
@@ -239,7 +239,7 @@ class ProjectResource extends Resource
                     ->label(__('Project status'))
                     ->formatStateUsing(fn($record) => new HtmlString('
                             <div class="flex items-center gap-2">
-                                <span class="filament-tables-color-column relative flex h-6 w-6 rounded-md"
+                                <span class="relative flex w-6 h-6 rounded-md filament-tables-color-column"
                                     style="background-color: ' . $record->status->color . '"></span>
                                 <span>' . $record->status->name . '</span>
                             </div>

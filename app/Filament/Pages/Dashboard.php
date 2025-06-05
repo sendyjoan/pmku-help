@@ -7,6 +7,7 @@ use App\Filament\Widgets\FavoriteProjects;
 use App\Filament\Widgets\LatestProjects;
 use App\Filament\Widgets\LatestTickets;
 use App\Filament\Widgets\TicketsOverview;
+use App\Filament\Widgets\ProjectAuditOverview;
 use App\Filament\Widgets\TimeLoggedByUsers; // Import widget baru
 use Filament\Pages\Dashboard as BasePage;
 
@@ -22,6 +23,7 @@ class Dashboard extends BasePage
     protected function getWidgets(): array
     {
         return [
+            ProjectAuditOverview::class,
             FavoriteProjects::class,
             EnhancedActivityFeed::class,
             LatestProjects::class,

@@ -5,6 +5,8 @@ namespace App\Providers;
 use Filament\Facades\Filament;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Config;
+use App\Filament\Resources\ProjectAuditResource;
+use App\Filament\Widgets\ProjectAuditOverview;
 
 class FilamentServiceProvider extends ServiceProvider
 {
@@ -31,6 +33,15 @@ class FilamentServiceProvider extends ServiceProvider
             // Register CSS untuk avatar
             Filament::registerStyles([
                 asset('css/filament-avatar.css'),
+            ]);
+            // Register ProjectAuditResource
+            Filament::registerResources([
+                ProjectAuditResource::class,
+            ]);
+
+            // Register Widget - Tambahkan ini
+            Filament::registerWidgets([
+                ProjectAuditOverview::class,
             ]);
         });
     }
