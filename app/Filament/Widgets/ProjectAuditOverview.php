@@ -97,7 +97,7 @@ class ProjectAuditOverview extends BaseWidget
                 ->description($criticalProjects > 0
                     ? __(':count projects need attention', ['count' => $criticalProjects])
                     : __('All projects healthy'))
-                ->descriptionIcon($criticalProjects > 0 ? 'heroicon-o-exclamation-triangle' : 'heroicon-o-check-circle')
+                ->descriptionIcon($criticalProjects > 0 ? 'heroicon-o-exclamation' : 'heroicon-o-check-circle')
                 ->color($criticalProjects > 0 ? 'warning' : 'success'),
 
             Card::make(__('Average Health Score'), $avgHealthScore . '/100')
@@ -107,7 +107,7 @@ class ProjectAuditOverview extends BaseWidget
 
             Card::make(__('Total Overdue'), $totalOverdue)
                 ->description($overduePercentage . '% ' . __('of all tickets'))
-                ->descriptionIcon($overduePercentage > 15 ? 'heroicon-o-exclamation-triangle' : 'heroicon-o-clock')
+                ->descriptionIcon($overduePercentage > 15 ? 'heroicon-o-exclamation' : 'heroicon-o-clock')
                 ->color($overduePercentage > 15 ? 'danger' : ($overduePercentage > 10 ? 'warning' : 'success')),
 
             Card::make(__('Completion Rate'), $completionRate . '%')
