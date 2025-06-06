@@ -14,6 +14,9 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
+use Filament\Forms;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Actions\Action;
@@ -23,6 +26,7 @@ use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Facades\Excel;
 use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\HtmlString;
 
 class ViewTicket extends ViewRecord implements HasForms
 {
@@ -90,42 +94,101 @@ class ViewTicket extends ViewRecord implements HasForms
                 ->label(__('Log time'))
                 ->icon('heroicon-o-clock')
                 ->color('warning')
-                ->modalWidth('sm')
+                ->modalWidth('lg')
                 ->modalHeading(__('Log worked time'))
-                ->modalSubheading(__('Use the following form to add your worked time in this ticket.'))
-                ->modalButton(__('Log'))
+                ->modalSubheading(__('Track the time you spent working on this ticket'))
+                ->modalButton(__('Log Time'))
                 ->visible(fn() => in_array(
                     auth()->user()->id,
                     [$this->record->owner_id, $this->record->responsible_id]
                 ))
                 ->form([
-                    TextInput::make('time')
-                        ->label(__('Time to log'))
-                        ->numeric()
-                        ->required(),
+                    Grid::make(2)
+                        ->schema([
+                            TextInput::make('hours')
+                                ->label(__('Hours'))
+                                ->numeric()
+                                ->default(0)
+                                ->minValue(0)
+                                ->maxValue(23)
+                                ->step(1)
+                                ->suffix('h')
+                                ->columnSpan(1),
+
+                            TextInput::make('minutes')
+                                ->label(__('Minutes'))
+                                ->numeric()
+                                ->default(0)
+                                ->minValue(0)
+                                ->maxValue(59)
+                                ->step(15)
+                                ->suffix('m')
+                                ->columnSpan(1),
+                        ]),
+
+                    Placeholder::make('time_examples')
+                        ->label('')
+                        ->content(new HtmlString('
+                            <div class="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg">
+                                <strong>Quick examples:</strong><br>
+                                <span class="inline-block mr-4">• 15 min = 0h 15m</span>
+                                <span class="inline-block mr-4">• 30 min = 0h 30m</span>
+                                <span class="inline-block mr-4">• 1.5 hrs = 1h 30m</span><br>
+                                <span class="inline-block mr-4">• 2 hrs = 2h 0m</span>
+                                <span class="inline-block mr-4">• 8 hrs = 8h 0m</span>
+                            </div>
+                        ')),
+
                     Select::make('activity_id')
-                        ->label(__('Activity'))
+                        ->label(__('Activity Type'))
+                        ->helperText(__('What type of work did you perform?'))
+                        ->placeholder(__('Select an activity...'))
                         ->searchable()
-                        ->reactive()
-                        ->options(function ($get, $set) {
-                            return Activity::all()->pluck('name', 'id')->toArray();
+                        ->required()
+                        ->options(function () {
+                            return Activity::with('parent')
+                                ->ordered()
+                                ->get()
+                                ->pluck('indented_name', 'id');
                         }),
+
                     Textarea::make('comment')
-                        ->label(__('Comment'))
-                        ->rows(3),
+                        ->label(__('Work Description'))
+                        ->helperText(__('Briefly describe what you worked on (optional)'))
+                        ->placeholder(__('e.g., Fixed login bug, Updated user interface, Wrote unit tests...'))
+                        ->rows(3)
+                        ->maxLength(500),
                 ])
                 ->action(function (Collection $records, array $data): void {
-                    $value = $data['time'];
-                    $comment = $data['comment'];
+                    // Konversi hours + minutes ke decimal hours
+                    $hours = (float) ($data['hours'] ?? 0);
+                    $minutes = (float) ($data['minutes'] ?? 0);
+                    $totalHours = $hours + ($minutes / 60);
+
+                    // Validasi minimal 1 menit (0.0167 hours)
+                    if ($totalHours < 0.0167) {
+                        $this->notify('danger', __('Minimum time is 1 minute'));
+                        return;
+                    }
+
+                    $comment = $data['comment'] ?? '';
+
                     TicketHour::create([
                         'ticket_id' => $this->record->id,
                         'activity_id' => $data['activity_id'],
                         'user_id' => auth()->user()->id,
-                        'value' => $value,
+                        'value' => $totalHours,
                         'comment' => $comment
                     ]);
+
                     $this->record->refresh();
-                    $this->notify('success', __('Time logged into ticket'));
+
+                    // Format pesan sukses yang lebih informatif
+                    $timeFormatted = $hours > 0
+                        ? ($minutes > 0 ? "{$hours}h {$minutes}m" : "{$hours}h")
+                        : "{$minutes}m";
+
+                    $this->notify('success', __('Successfully logged :time for this ticket', ['time' => $timeFormatted]));
                 }),
             Actions\ActionGroup::make([
                 Actions\Action::make('exportLogHours')

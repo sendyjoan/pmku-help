@@ -3,13 +3,13 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ActivityResource\Pages;
-use App\Filament\Resources\ActivityResource\RelationManagers;
 use App\Models\Activity;
 use Filament\Forms;
 use Filament\Resources\Form;
 use Filament\Resources\Resource;
 use Filament\Resources\Table;
 use Filament\Tables;
+use Illuminate\Database\Eloquent\Builder;
 
 class ActivityResource extends Resource
 {
@@ -47,11 +47,39 @@ class ActivityResource extends Resource
                                     ->required()
                                     ->maxLength(255),
 
+                                Forms\Components\Select::make('parent_id')
+                                    ->label(__('Parent Activity'))
+                                    ->placeholder(__('Select parent activity (optional)'))
+                                    ->options(function ($record) {
+                                        $query = Activity::query();
+
+                                        // Jika edit, exclude diri sendiri
+                                        if ($record) {
+                                            $query->where('id', '!=', $record->id);
+                                        }
+
+                                        return $query->whereNull('parent_id')
+                                            ->orWhere('level', '<', 2)
+                                            ->get()
+                                            ->pluck('name', 'id');
+                                    })
+                                    ->searchable()
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $parent = Activity::find($state);
+                                            $set('level', $parent ? $parent->level + 1 : 0);
+                                        } else {
+                                            $set('level', 0);
+                                        }
+                                    }),
+
+                                Forms\Components\Hidden::make('level'),
+
                                 Forms\Components\RichEditor::make('description')
                                     ->label(__('Description'))
                                     ->required()
                                     ->columnSpan(2),
-
                             ])
                     ])
             ]);
@@ -63,17 +91,42 @@ class ActivityResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label(__('Activity name'))
-                    ->sortable()
-                    ->searchable(),
+                    ->formatStateUsing(function ($record) {
+                        if (is_null($record->parent_id)) {
+                            return '📁 ' . $record->name;
+                        } else {
+                            return '    └─ ' . $record->name;
+                        }
+                    })
+                    ->searchable(['name']),
+
+                Tables\Columns\BadgeColumn::make('level')
+                    ->label(__('Level'))
+                    ->colors([
+                        'primary' => 0,
+                        'secondary' => 1,
+                        'success' => 2,
+                    ])
+                    ->formatStateUsing(fn($state) => $state ?? 0),
+
+                Tables\Columns\TextColumn::make('children_count')
+                    ->label(__('Sub Activities'))
+                    ->counts('children')
+                    ->formatStateUsing(fn($state) => $state > 0 ? $state : '-'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label(__('Created at'))
                     ->dateTime()
-                    ->sortable()
-                    ->searchable(),
+                    ->sortable(),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('level')
+                    ->label(__('Level'))
+                    ->options([
+                        0 => __('Root Activities'),
+                        1 => __('Sub Activities'),
+                        2 => __('Sub-Sub Activities'),
+                    ]),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -82,14 +135,12 @@ class ActivityResource extends Resource
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make(),
             ])
-            ->defaultSort('id');
+            ->defaultSort('parent_id');
     }
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array
