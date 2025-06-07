@@ -296,7 +296,10 @@ trait KanbanScrumHelper
         $heading .= '<span class="text-2xl font-bold text-gray-900">' . __('Kanban');
         if ($this->project) {
             $heading .= ' - ' . $this->project->name . '</span>';
-            $heading .= '<span class="text-sm text-gray-600">' . __('Manage your project tickets with drag & drop') . '</span>';
+            $heading .= '<span class="text-sm text-gray-500">'
+              . ($this->project->description
+                   ?? 'Manage your project tickets with drag & drop')
+              . '</span>';
         } else {
             $heading .= '</span><span class="text-xs text-gray-400">'
                 . __('Only default statuses are listed when no projects selected')
