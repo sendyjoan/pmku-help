@@ -103,7 +103,12 @@ class ProjectResource extends Resource
 
                                 Forms\Components\RichEditor::make('description')
                                     ->label(__('Project description'))
-                                    ->columnSpan(3),
+                                    ->columnSpan(3)
+                                    ->rules(['max:165'])
+                                    ->reactive()
+                                    ->hint(fn ($state) =>
+                                        (165 - mb_strlen(strip_tags($state ?? ''))) . ' characters remaining'
+                                    ),
 
                                 Forms\Components\Select::make('type')
                                     ->label(__('Project type'))
