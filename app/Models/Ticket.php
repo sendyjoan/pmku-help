@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Notifications\TicketCreated;
 use App\Notifications\TicketStatusUpdated;
+use App\Notifications\FeedbackUpdated;
 use Carbon\CarbonInterval;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,9 +12,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use App\Models\TicketHour;
 
 class Ticket extends Model implements HasMedia
 {
@@ -24,6 +27,7 @@ class Ticket extends Model implements HasMedia
         'status_id', 'project_id', 'code', 'order', 'type_id',
         'priority_id', 'estimation', 'epic_id', 'sprint_id', 'due_date'
     ];
+
     protected $casts = [
         'due_date' => 'date',
     ];
@@ -44,8 +48,18 @@ class Ticket extends Model implements HasMedia
             if ($item->sprint_id && $item->sprint->epic_id) {
                 Ticket::where('id', $item->id)->update(['epic_id' => $item->sprint->epic_id]);
             }
+
             foreach ($item->watchers as $user) {
                 $user->notify(new TicketCreated($item));
+            }
+
+            // Jika ticket ini dibuat dari customer feedback, notify customer
+            if ($item->customerFeedback) {
+                $feedback = $item->customerFeedback;
+                $feedback->user->notify(new FeedbackUpdated(
+                    $feedback,
+                    "Your feedback has been converted to ticket: {$item->code}"
+                ));
             }
         });
 
@@ -61,8 +75,19 @@ class Ticket extends Model implements HasMedia
                     'new_status_id' => $item->status_id,
                     'user_id' => auth()->user()->id
                 ]);
+
                 foreach ($item->watchers as $user) {
                     $user->notify(new TicketStatusUpdated($item));
+                }
+
+                // Jika ticket ini dari customer feedback, notify customer juga
+                if ($item->customerFeedback) {
+                    $feedback = $item->customerFeedback;
+                    $newStatusName = $item->status->name;
+                    $feedback->user->notify(new FeedbackUpdated(
+                        $feedback,
+                        "Ticket {$item->code} status updated to: {$newStatusName}"
+                    ));
                 }
             }
 
@@ -91,11 +116,6 @@ class Ticket extends Model implements HasMedia
         return $this->belongsTo(TicketStatus::class, 'status_id', 'id')->withTrashed();
     }
 
-    public function project(): BelongsTo
-    {
-        return $this->belongsTo(Project::class, 'project_id', 'id')->withTrashed();
-    }
-
     public function type(): BelongsTo
     {
         return $this->belongsTo(TicketType::class, 'type_id', 'id')->withTrashed();
@@ -106,29 +126,9 @@ class Ticket extends Model implements HasMedia
         return $this->belongsTo(TicketPriority::class, 'priority_id', 'id')->withTrashed();
     }
 
-    public function activities(): HasMany
+    public function project(): BelongsTo
     {
-        return $this->hasMany(TicketActivity::class, 'ticket_id', 'id');
-    }
-
-    public function comments(): HasMany
-    {
-        return $this->hasMany(TicketComment::class, 'ticket_id', 'id');
-    }
-
-    public function subscribers(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'ticket_subscribers', 'ticket_id', 'user_id');
-    }
-
-    public function relations(): HasMany
-    {
-        return $this->hasMany(TicketRelation::class, 'ticket_id', 'id');
-    }
-
-    public function hours(): HasMany
-    {
-        return $this->hasMany(TicketHour::class, 'ticket_id', 'id');
+        return $this->belongsTo(Project::class, 'project_id', 'id')->withTrashed();
     }
 
     public function epic(): BelongsTo
@@ -141,49 +141,44 @@ class Ticket extends Model implements HasMedia
         return $this->belongsTo(Sprint::class, 'sprint_id', 'id');
     }
 
-    public function sprints(): BelongsTo
+    public function activities(): HasMany
     {
-        return $this->belongsTo(Sprint::class, 'sprint_id', 'id');
+        return $this->hasMany(TicketActivity::class, 'ticket_id', 'id');
     }
 
-    public function watchers(): Attribute
+    public function comments(): HasMany
     {
-        return new Attribute(
-            get: function () {
-                $users = $this->project->users;
-                $users->push($this->owner);
-                if ($this->responsible) {
-                    $users->push($this->responsible);
-                }
-                return $users->unique('id');
-                foreach ($this->ccUsers as $ccUser) {
-                    $users->push($ccUser);
-                }
-                return $users->unique('id');
-            }
-        );
+        return $this->hasMany(TicketComment::class, 'ticket_id', 'id');
     }
 
+    public function relations(): HasMany
+    {
+        return $this->hasMany(TicketRelation::class, 'ticket_id', 'id');
+    }
+
+    public function watchers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'ticket_watchers', 'ticket_id', 'user_id');
+    }
+
+    // Relasi ke CustomerFeedback (reverse relationship)
+    public function customerFeedback(): HasOne
+    {
+        return $this->hasOne(CustomerFeedback::class, 'converted_ticket_id', 'id');
+    }
+
+    /**
+     * Ticket Hours relationship
+     */
+    public function hours(): HasMany
+    {
+        return $this->hasMany(TicketHour::class, 'ticket_id', 'id');
+    }
+
+    /**
+     * Total logged hours attribute
+     */
     public function totalLoggedHours(): Attribute
-    {
-        return new Attribute(
-            get: function () {
-                $seconds = $this->hours->sum('value') * 3600;
-                return CarbonInterval::seconds($seconds)->cascade()->forHumans();
-            }
-        );
-    }
-
-    public function totalLoggedSeconds(): Attribute
-    {
-        return new Attribute(
-            get: function () {
-                return $this->hours->sum('value') * 3600;
-            }
-        );
-    }
-
-    public function totalLoggedInHours(): Attribute
     {
         return new Attribute(
             get: function () {
@@ -192,6 +187,20 @@ class Ticket extends Model implements HasMedia
         );
     }
 
+    /**
+     * Estimation progress percentage
+     */
+    public function estimationProgress(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                if (!$this->estimation || $this->estimation == 0) {
+                    return 0;
+                }
+                return ($this->totalLoggedHours / $this->estimation) * 100;
+            }
+        );
+    }
     public function estimationForHumans(): Attribute
     {
         return new Attribute(
@@ -212,12 +221,47 @@ class Ticket extends Model implements HasMedia
             }
         );
     }
+    public function subscribers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'ticket_subscribers', 'ticket_id', 'user_id');
+    }
 
-    public function estimationProgress(): Attribute
+    public function totalLoggedSeconds(): Attribute
     {
         return new Attribute(
             get: function () {
-                return (($this->totalLoggedSeconds ?? 0) / ($this->estimationInSeconds ?? 1)) * 100;
+                return $this->hours->sum('value') * 3600;
+            }
+        );
+    }
+
+    public function totalLoggedInHours(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                return $this->hours->sum('value');
+            }
+        );
+    }
+
+    /**
+     * Completed at attribute (when ticket was completed)
+     */
+    public function completedAt(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                // Get the latest activity where status changed to a "completed" status
+                $completedActivity = $this->activities()
+                    ->whereHas('newStatus', function ($query) {
+                        $query->where('name', 'like', '%completed%')
+                              ->orWhere('name', 'like', '%done%')
+                              ->orWhere('name', 'like', '%finished%');
+                    })
+                    ->latest()
+                    ->first();
+
+                return $completedActivity ? $completedActivity->created_at : null;
             }
         );
     }
@@ -228,15 +272,35 @@ class Ticket extends Model implements HasMedia
             get: fn() => $this->estimationProgress
         );
     }
-    public function isOverdue(): Attribute
+
+    /**
+     * Diff for humans when completed
+     */
+    public function diffForHumans(): Attribute
     {
         return new Attribute(
             get: function () {
-                return $this->due_date && $this->due_date->isPast();
+                return $this->completedAt ? $this->completedAt->diffForHumans() : null;
             }
         );
     }
 
+    /**
+     * Check if ticket is completed
+     */
+    public function isCompleted(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                return $this->status && (
+                    stripos($this->status->name, 'completed') !== false ||
+                    stripos($this->status->name, 'done') !== false ||
+                    stripos($this->status->name, 'finished') !== false ||
+                    stripos($this->status->name, 'closed') !== false
+                );
+            }
+        );
+    }
     public function daysUntilDue(): Attribute
     {
         return new Attribute(
@@ -253,32 +317,29 @@ class Ticket extends Model implements HasMedia
         return $this->belongsToMany(User::class, 'ticket_cc', 'ticket_id', 'user_id')
                     ->withTimestamps();
     }
-    public function completedAt(): Attribute
-    {
-        return new Attribute(
-            get: function () {
-                // Cari activity terakhir yang mengubah status ke 'completed'
-                // Anda perlu sesuaikan nama status completed di sistem Anda
-                $completedActivity = $this->activities()
-                    ->whereHas('newStatus', function($query) {
-                        $query->where('name', 'Completed'); // Sesuaikan dengan nama status completed di sistem Anda
-                    })
-                    ->latest()
-                    ->first();
 
-                return $completedActivity ? $completedActivity->created_at : null;
-            }
-        );
-    }
-
-    public function isCompleted(): Attribute
+    /**
+     * Get watchers who should be notified
+     */
+    public function getNotifiableWatchers()
     {
-        return new Attribute(
-            get: function () {
-                // Sesuaikan dengan nama status completed di sistem Anda
-                return $this->status->name === 'Completed';
-            }
-        );
+        $watchers = collect();
+
+        // Add owner
+        if ($this->owner) {
+            $watchers->push($this->owner);
+        }
+
+        // Add responsible user
+        if ($this->responsible) {
+            $watchers->push($this->responsible);
+        }
+
+        // Add explicit watchers
+        $watchers = $watchers->merge($this->watchers);
+
+        // Remove duplicates
+        return $watchers->unique('id');
     }
     public function scopeCompletedBetween($query, $startDate, $endDate)
     {

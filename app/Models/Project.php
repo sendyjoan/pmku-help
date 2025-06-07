@@ -78,6 +78,10 @@ class Project extends Model implements HasMedia
             }
         );
     }
+    public function customerFeedbacks(): HasMany
+    {
+        return $this->hasMany(CustomerFeedback::class, 'project_id', 'id');
+    }
 
     public function epicsLastDate(): Attribute
     {

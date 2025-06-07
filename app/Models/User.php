@@ -103,6 +103,18 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         return $this->belongsToMany(Project::class, 'project_users', 'user_id', 'project_id')->withPivot(['role']);
     }
 
+    // Alias untuk konsistensi dengan kode CustomerFeedback
+    public function projects(): BelongsToMany
+    {
+        return $this->projectsAffected();
+    }
+
+    // Alias untuk konsistensi dengan kode CustomerFeedback
+    public function ownedProjects(): HasMany
+    {
+        return $this->projectsOwning();
+    }
+
     public function favoriteProjects(): BelongsToMany
     {
         return $this->belongsToMany(Project::class, 'project_favorites', 'user_id', 'project_id');
@@ -128,6 +140,47 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         return $this->hasMany(TicketHour::class, 'user_id', 'id');
     }
 
+    /**
+     * Customer feedbacks yang dibuat user
+     */
+    public function customerFeedbacks(): HasMany
+    {
+        return $this->hasMany(CustomerFeedback::class, 'user_id');
+    }
+
+    /**
+     * Semua projects yang bisa diakses user (owned + attached)
+     */
+    public function accessibleProjects()
+    {
+        $ownedProjectIds = $this->projectsOwning()->pluck('id');
+        $attachedProjectIds = $this->projectsAffected()->pluck('projects.id');
+        $allProjectIds = $ownedProjectIds->merge($attachedProjectIds)->unique();
+
+        return Project::whereIn('id', $allProjectIds);
+    }
+
+    /**
+     * Check if user has access to specific project
+     */
+    public function hasAccessToProject(Project $project): bool
+    {
+        return $this->id === $project->owner_id ||
+               $this->projectsAffected()->where('projects.id', $project->id)->exists();
+    }
+
+    /**
+     * Get projects available for feedback (only for clients)
+     */
+    public function getProjectsForFeedback()
+    {
+        if (!$this->hasRole('Client')) {
+            return collect();
+        }
+
+        return $this->accessibleProjects()->get();
+    }
+
     public function totalLoggedInHours(): Attribute
     {
         return new Attribute(
@@ -141,6 +194,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
     {
         return true;
     }
+
     private static function generateUsernameFromEmail($email)
     {
         // Ambil bagian sebelum @ dari email
@@ -160,6 +214,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
 
         return $username;
     }
+
     public static function getValidationRules($ignoreId = null)
     {
         return [
@@ -182,10 +237,12 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
             'username.max' => 'Username cannot exceed 30 characters.'
         ];
     }
+
     public function getFilamentAvatarUrl(): ?string
     {
         return $this->avatar_url ?: null;
     }
+
     public function avatarUrl(): Attribute
     {
         return new Attribute(
@@ -199,6 +256,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
             }
         );
     }
+
     // Method to get initials for avatar display
     public function getInitials(): string
     {

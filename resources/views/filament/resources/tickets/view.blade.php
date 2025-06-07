@@ -161,7 +161,7 @@
                 </div>
             </div>
 
-            @if($record->isCompleted && $record->completedAt)
+            @if($record->isCompleted() && $record->completedAt)
             <div class="flex flex-col w-full gap-1 pt-3">
                 <span class="text-sm font-medium text-gray-500">
                     {{ __('Completed Date') }}

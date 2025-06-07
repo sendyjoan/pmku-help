@@ -15,7 +15,7 @@ class PermissionsSeeder extends Seeder
     private array $modules = [
         'permission', 'project', 'project status', 'role', 'ticket',
         'ticket priority', 'ticket status', 'ticket type', 'user',
-        'activity', 'sprint', 'comment'
+        'activity', 'sprint', 'comment', 'customer feedback' // Added customer feedback
     ];
 
     private array $pluralActions = [
@@ -77,5 +77,49 @@ class PermissionsSeeder extends Seeder
         if ($user = User::first()) {
             $user->syncRoles([$this->defaultRole]);
         }
+
+        // Setup specific roles with limited permissions
+        $this->createClientRole();
+        $this->createAdminRole();
+        $this->createSuperAdminRole();
+    }
+
+    private function createClientRole()
+    {
+        $clientRole = Role::firstOrCreate(['name' => 'Client']);
+
+        $clientPermissions = [
+            'List customer feedbacks',
+            'View customer feedback',
+            'Create customer feedback',
+            'Update customer feedback',
+            'View project status',
+            'View sprint'
+        ];
+
+        $existingPermissions = Permission::whereIn('name', $clientPermissions)->pluck('name')->toArray();
+        $clientRole->syncPermissions($existingPermissions);
+    }
+
+    private function createAdminRole()
+    {
+        $adminRole = Role::firstOrCreate(['name' => 'Admin']);
+
+        // Admin bisa semua kecuali manage roles & permissions
+        $excludedPermissions = [
+            'List roles', 'View role', 'Create role', 'Update role', 'Delete role',
+            'List permissions', 'View permission', 'Create permission', 'Update permission', 'Delete permission'
+        ];
+
+        $adminPermissions = Permission::whereNotIn('name', $excludedPermissions)->pluck('name')->toArray();
+        $adminRole->syncPermissions($adminPermissions);
+    }
+
+    private function createSuperAdminRole()
+    {
+        $superAdminRole = Role::firstOrCreate(['name' => 'Super Admin']);
+
+        // Super Admin bisa semua
+        $superAdminRole->syncPermissions(Permission::all()->pluck('name')->toArray());
     }
 }
