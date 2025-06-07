@@ -50,20 +50,50 @@ jobs:
           sshpass -p 'c#)rgPMzNC2998@Vb4.M' ssh -o StrictHostKeyChecking=no root@147.93.30.80 << 'EOF'
             cd /var/www/pm-helper
 
-          # Set ownership for the entire project
-          chown -R www-data:www-data /var/www/pm-helper
+            # PERBAIKAN 1: Clear everything first before setting permissions
+            php8.2 artisan down --message="Upgrading Application" --allow=147.93.30.80
 
-          # Set appropriate permissions for storage and cache directories
-          chmod -R 775 /var/www/pm-helper/storage /var/www/pm-helper/bootstrap/cache
+            # PERBAIKAN 2: Remove problematic cache files
+            rm -rf storage/framework/cache/data/*
+            rm -rf storage/framework/views/*
+            rm -rf storage/framework/sessions/*
+            rm -rf storage/logs/*
+            rm -rf bootstrap/cache/*.php
 
-            # Laravel Commands
-            php8.2 artisan key:generate --ansi
-            php8.2 artisan migrate --force
-            php8.2 artisan optimize:clear
-            php8.2 artisan storage:link
+            # PERBAIKAN 3: Recreate necessary directories
+            mkdir -p storage/framework/cache/data
+            mkdir -p storage/framework/views
+            mkdir -p storage/framework/sessions
+            mkdir -p storage/logs
+            mkdir -p bootstrap/cache
+
+            # PERBAIKAN 4: Set ownership BEFORE running Laravel commands
+            chown -R www-data:www-data /var/www/pm-helper
+            chmod -R 755 /var/www/pm-helper
+            chmod -R 775 /var/www/pm-helper/storage
+            chmod -R 775 /var/www/pm-helper/bootstrap/cache
+
+            # PERBAIKAN 5: Laravel Commands in correct order
+            php8.2 artisan key:generate --ansi --force
             php8.2 artisan config:clear
             php8.2 artisan cache:clear
             php8.2 artisan route:clear
             php8.2 artisan view:clear
-            php8.2 artisan storage:link
+            php8.2 artisan storage:link --force
+
+            # PERBAIKAN 6: Run migrations AFTER clearing cache
+            php8.2 artisan migrate --force
+
+            # PERBAIKAN 7: Optimize for production
+            php8.2 artisan config:cache
+            php8.2 artisan route:cache
+            php8.2 artisan view:cache
+
+            # PERBAIKAN 8: Final permission fix
+            chown -R www-data:www-data /var/www/pm-helper
+            chmod -R 775 /var/www/pm-helper/storage /var/www/pm-helper/bootstrap/cache
+
+            # PERBAIKAN 9: Bring application back up
+            php8.2 artisan up
+
           EOF
