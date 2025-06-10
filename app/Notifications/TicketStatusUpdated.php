@@ -51,9 +51,15 @@ class TicketStatusUpdated extends Notification implements ShouldQueue
     public function toMail($notifiable)
     {
         return (new MailMessage)
-            ->line(__('The status of ticket :ticket has been updated.', ['ticket' => $this->ticket->name]))
+            ->subject('Status updated on ticket ' . $this->ticket->code)
+            ->line(__('The status of ticket :code - :title has been updated.', [
+                'code' => $this->ticket->code,
+                'title' => $this->ticket->name
+            ]))
+            ->line('- ' . __('Updated by:') . ' ' . ($this->activity->user->name ?? 'System'))
             ->line('- ' . __('Old status:') . ' ' . $this->activity->oldStatus->name)
             ->line('- ' . __('New status:') . ' ' . $this->activity->newStatus->name)
+            ->line('- ' . __('Project:') . ' ' . $this->ticket->project->name)
             ->line(__('See more details of this ticket by clicking on the button below:'))
             ->action(__('View details'), route('filament.resources.tickets.share', $this->ticket->code));
     }

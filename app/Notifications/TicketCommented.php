@@ -48,20 +48,16 @@ class TicketCommented extends Notification implements ShouldQueue
     public function toMail($notifiable)
     {
         return (new MailMessage)
-            ->line(
-                __(
-                    'A new comment has been added to the ticket :ticket by :name.',
-                    [
-                        'ticket' => $this->ticketComment->ticket->name,
-                        'name' => $this->ticketComment->user->name
-                    ]
-                )
-            )
+            ->subject('New comment on ticket ' . $this->ticketComment->ticket->code)
+            ->line(__('A new comment has been added to ticket :code - :title by :name.', [
+                'code' => $this->ticketComment->ticket->code,
+                'title' => $this->ticketComment->ticket->name,
+                'name' => $this->ticketComment->user->name
+            ]))
+            ->line('**Comment:** ' . strip_tags($this->ticketComment->content))
+            ->line('**Project:** ' . $this->ticketComment->ticket->project->name)
             ->line(__('See more details of this ticket by clicking on the button below:'))
-            ->action(
-                __('View details'),
-                route('filament.resources.tickets.share', $this->ticketComment->ticket->code)
-            );
+            ->action(__('View details'), route('filament.resources.tickets.share', $this->ticketComment->ticket->code));
     }
 
     public function toDatabase(User $notifiable): array
