@@ -22,16 +22,40 @@ class TicketStatusSeeder extends Seeder
             'order' => 2
         ],
         [
+            'name' => 'Pending Review',
+            'color' => '#fffc00',
+            'is_default' => false,
+            'order' => 3
+        ],
+        [
+            'name' => 'In Review',
+            'color' => '#00ff75',
+            'is_default' => false,
+            'order' => 4
+        ],
+        [
+            'name' => 'Pending UAT',
+            'color' => '#00ffff',
+            'is_default' => false,
+            'order' => 5
+        ],
+        [
+            'name' => 'In UAT',
+            'color' => '#007be0',
+            'is_default' => false,
+            'order' => 6
+        ],
+        [
             'name' => 'Done',
             'color' => '#008000',
             'is_default' => false,
-            'order' => 3
+            'order' => 7
         ],
         [
             'name' => 'Archived',
             'color' => '#ff0000',
             'is_default' => false,
-            'order' => 4
+            'order' => 8
         ],
     ];
 

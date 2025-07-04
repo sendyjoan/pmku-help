@@ -82,6 +82,8 @@ class PermissionsSeeder extends Seeder
         $this->createClientRole();
         $this->createAdminRole();
         $this->createSuperAdminRole();
+        $this->createStaffRole();
+        $this->createSupervisorRole();
     }
 
     private function createClientRole()
@@ -121,5 +123,53 @@ class PermissionsSeeder extends Seeder
 
         // Super Admin bisa semua
         $superAdminRole->syncPermissions(Permission::all()->pluck('name')->toArray());
+    }
+
+    private function createStaffRole(){
+        $staffRole = Role::findOrCreate('Staff');
+
+        $staffPermissions = [
+            'Create comment',
+            'List comments',
+            'List projects',
+            'List tickets',
+            'Update comment',
+            'View comment',
+            'View project',
+            'View ticket',
+        ];
+
+        $existingPermissions = Permission::whereIn('name', $staffPermissions)->pluck('name')->toArray();
+        $staffRole->syncPermissions($existingPermissions);
+    }
+
+    private function createSupervisorRole(){
+        $supervisorRole = Role::findOrCreate('Supervisor');
+
+        $supervisorPermissions = [
+            'create comment',
+            'create project',
+            'create sprint',
+            'create ticket',
+            'delete comment',
+            'delete project',
+            'delete sprint',
+            'delete ticket',
+            'list comments',
+            'list projects',
+            'list sprints',
+            'list tickets',
+            'update comment',
+            'update project',
+            'update sprint',
+            'update ticket',
+            'view comment',
+            'view project',
+            'view sprint',
+            'view ticket',
+        ];
+
+        $existingPermissions = Permission::whereIn('name', $supervisorPermissions)->pluck('name')->toArray();
+        $supervisorRole->syncPermissions($existingPermissions);
     }
 }

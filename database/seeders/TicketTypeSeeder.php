@@ -26,6 +26,18 @@ class TicketTypeSeeder extends Seeder
             'color' => '#ff0000',
             'is_default' => false
         ],
+        [
+            'name' => 'Research',
+            'icon' => 'heroicon-o-academic-cap',
+            'color' => '#ff0000',
+            'is_default' => false
+        ],
+        [
+            'name' => 'Out of Office Call',
+            'icon' => 'heroicon-o-briefcase',
+            'color' => '#ff0000',
+            'is_default' => false
+        ],
     ];
 
     /**
